@@ -362,6 +362,28 @@ namespace PhatACCacheBinParser
 
                 return results;
             }
+
+            public static List<ACE.Database.Models.World.TreasureDeath> GetAllTreasureDeath()
+            {
+                var landblocks = new List<ACE.Database.Models.World.TreasureDeath>();
+
+                var results = WorldDbContext.TreasureDeath
+                    .AsNoTracking()
+                    .ToList();
+
+                return results;
+            }
+
+            public static List<ACE.Database.Models.World.TreasureWielded> GetAllTreasureWielded()
+            {
+                var landblocks = new List<ACE.Database.Models.World.TreasureWielded>();
+
+                var results = WorldDbContext.TreasureWielded
+                    .AsNoTracking()
+                    .ToList();
+
+                return results;
+            }
         }
     }
 }

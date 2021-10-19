@@ -1,40 +1,10 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\Microsoft.EntityFrameworkCore.Design.2.2.6\build\net461\Microsoft.EntityFrameworkCore.Design.props" Condition="Exists('packages\Microsoft.EntityFrameworkCore.Design.2.2.6\build\net461\Microsoft.EntityFrameworkCore.Design.props')" />
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{8B0E4594-4D19-4A08-A6B9-B134BA9D4F3B}</ProjectGuid>
+    <TargetFramework>net5.0-windows</TargetFramework>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>PhatACCacheBinParser</RootNamespace>
-    <AssemblyName>PhatACCacheBinParser</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <TargetFrameworkProfile />
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>true</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ACE.Adapter, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -52,267 +22,31 @@
     <Reference Include="Lifestoned.DataModel">
       <HintPath>lib\Lifestoned.DataModel.dll</HintPath>
     </Reference>
-    <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
-      <HintPath>packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="Microsoft.EntityFrameworkCore, Version=2.2.6.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.EntityFrameworkCore.2.2.6\lib\netstandard2.0\Microsoft.EntityFrameworkCore.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.EntityFrameworkCore.Abstractions, Version=2.2.6.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.EntityFrameworkCore.Abstractions.2.2.6\lib\netstandard2.0\Microsoft.EntityFrameworkCore.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.EntityFrameworkCore.Design, Version=2.2.6.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.EntityFrameworkCore.Design.2.2.6\lib\net461\Microsoft.EntityFrameworkCore.Design.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.EntityFrameworkCore.Relational, Version=2.2.6.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.EntityFrameworkCore.Relational.2.2.6\lib\netstandard2.0\Microsoft.EntityFrameworkCore.Relational.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Caching.Abstractions, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Caching.Abstractions.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Caching.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Caching.Memory, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Caching.Memory.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Caching.Memory.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Configuration, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Configuration.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Configuration.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Configuration.Abstractions, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Configuration.Abstractions.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Configuration.Binder, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Configuration.Binder.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Configuration.Binder.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.DependencyInjection, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.DependencyInjection.2.2.0\lib\net461\Microsoft.Extensions.DependencyInjection.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.DependencyInjection.Abstractions.2.2.0\lib\netstandard2.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Logging, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Logging.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Logging.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Logging.Abstractions, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Logging.Abstractions.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Logging.Configuration, Version=2.1.1.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Logging.Configuration.2.1.1\lib\netstandard2.0\Microsoft.Extensions.Logging.Configuration.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Logging.Console, Version=2.1.1.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Logging.Console.2.1.1\lib\netstandard2.0\Microsoft.Extensions.Logging.Console.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Options, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Options.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Options.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Options.ConfigurationExtensions, Version=2.1.1.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Options.ConfigurationExtensions.2.1.1\lib\netstandard2.0\Microsoft.Extensions.Options.ConfigurationExtensions.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Extensions.Primitives, Version=2.2.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Extensions.Primitives.2.2.0\lib\netstandard2.0\Microsoft.Extensions.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="MySqlConnector, Version=0.42.1.0, Culture=neutral, PublicKeyToken=d33d3e53aa5f8c92, processorArchitecture=MSIL">
-      <HintPath>packages\MySqlConnector.0.42.1\lib\net461\MySqlConnector.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="Pomelo.EntityFrameworkCore.MySql, Version=2.1.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\Pomelo.EntityFrameworkCore.MySql.2.1.1\lib\netstandard2.0\Pomelo.EntityFrameworkCore.MySql.dll</HintPath>
-    </Reference>
-    <Reference Include="Pomelo.JsonObject, Version=1.1.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\Pomelo.JsonObject.1.1.1\lib\net451\Pomelo.JsonObject.dll</HintPath>
-    </Reference>
-    <Reference Include="Remotion.Linq, Version=2.2.0.0, Culture=neutral, PublicKeyToken=fee00910d6e5f53b, processorArchitecture=MSIL">
-      <HintPath>packages\Remotion.Linq.2.2.0\lib\net45\Remotion.Linq.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Buffers, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Buffers.4.4.0\lib\netstandard2.0\System.Buffers.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Collections.Immutable, Version=1.2.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>packages\System.Collections.Immutable.1.5.0\lib\netstandard2.0\System.Collections.Immutable.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ComponentModel.Annotations, Version=4.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>packages\System.ComponentModel.Annotations.4.5.0\lib\net461\System.ComponentModel.Annotations.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ComponentModel.DataAnnotations" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Diagnostics.DiagnosticSource.4.5.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Interactive.Async, Version=3.2.0.0, Culture=neutral, PublicKeyToken=94bc3704cddfc263, processorArchitecture=MSIL">
-      <HintPath>packages\System.Interactive.Async.3.2.0\lib\net46\System.Interactive.Async.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Memory, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Memory.4.5.1\lib\netstandard2.0\System.Memory.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Numerics.Vectors, Version=4.1.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>packages\System.Numerics.Vectors.4.4.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>packages\System.Runtime.CompilerServices.Unsafe.4.5.1\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Threading.Tasks.Extensions, Version=4.1.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Threading.Tasks.Extensions.4.3.0\lib\portable-net45+win8+wp8+wpa81\System.Threading.Tasks.Extensions.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Transactions" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ACE Helpers\CraftTableExtensions.cs" />
-    <Compile Include="ACE Helpers\GameEventDefDBExtensions.cs" />
-    <Compile Include="ACE Helpers\HousingPortalsExtensions.cs" />
-    <Compile Include="ACE Helpers\LandBlockExtendedDataExtensions.cs" />
-    <Compile Include="ACE Helpers\MutationFiltersExtensions.cs" />
-    <Compile Include="ACE Helpers\QuestDefDBExtensions.cs" />
-    <Compile Include="ACE Helpers\RegionDescExtendedDataExtensions.cs" />
-    <Compile Include="ACE Helpers\SpellsTableExtendedDataExtensions.cs" />
-    <Compile Include="ACE Helpers\TreasureTableExtensions.cs" />
-    <Compile Include="ACE Helpers\WeenieDefaultsExtensions.cs" />
-    <Compile Include="Common\PacketOpCodeNames.cs" />
-    <Compile Include="Common\WeenieClassNames.cs" />
-    <Compile Include="Common\SpellNames.cs" />
-    <Compile Include="Globals.cs" />
-    <Compile Include="SQLWriters\EventSQLWriter.cs" />
-    <Compile Include="SQLWriters\HouseSQLWriter.cs" />
-    <Compile Include="SQLWriters\LandblockSQLWriter.cs" />
-    <Compile Include="SQLWriters\QuestSQLWriter.cs" />
-    <Compile Include="SQLWriters\CraftingSQLWriter.cs" />
-    <Compile Include="SQLWriters\RegionDescSQLWriter.cs" />
-    <Compile Include="SQLWriters\SpellsSQLWriter.cs" />
-    <Compile Include="SQLWriters\TreasureSQLWriter.cs" />
-    <Compile Include="SQLWriters\WeenieSQLWriter.cs" />
-    <Compile Include="UnpackableExtensions.cs" />
-    <Compile Include="Seg1_RegionDescExtendedData\EncounterMap.cs" />
-    <Compile Include="Seg2_SpellTableExtendedData\SpellFormula.cs" />
-    <Compile Include="Seg2_SpellTableExtendedData\SpellStatMod.cs" />
-    <Compile Include="Seg2_SpellTableExtendedData\SpellTableExtendedData.cs" />
-    <Compile Include="Seg3_TreasureTable\WieldedTreasure.cs" />
-    <Compile Include="Seg3_TreasureTable\DeathTreasure.cs" />
-    <Compile Include="Seg3_TreasureTable\TreasureEntry3.cs" />
-    <Compile Include="Seg3_TreasureTable\TreasureEntry4.cs" />
-    <Compile Include="Seg3_TreasureTable\ValueAndChance.cs" />
-    <Compile Include="Seg3_TreasureTable\ChanceByTier.cs" />
-    <Compile Include="Seg3_TreasureTable\ValuesAndChancesByTier.cs" />
-    <Compile Include="Seg3_TreasureTable\TreasureTable.cs" />
-    <Compile Include="Seg4_CraftTable\CraftingTable.cs" />
-    <Compile Include="Seg4_CraftTable\Mod.cs" />
-    <Compile Include="Seg4_CraftTable\Precursor.cs" />
-    <Compile Include="Seg4_CraftTable\Requirement.cs" />
-    <Compile Include="Seg5_HousingPortals\HousingPortal.cs" />
-    <Compile Include="Seg1_RegionDescExtendedData\RegionDescExtendedData.cs" />
-    <Compile Include="Seg1_RegionDescExtendedData\EncounterTable.cs" />
-    <Compile Include="Seg5_HousingPortals\HousingPortalsTable.cs" />
-    <Compile Include="Seg6_LandBlockExtendedData\LandBlockData.cs" />
-    <Compile Include="Seg6_LandBlockExtendedData\TerrainData.cs" />
-    <Compile Include="SegB_GameEventDefDB\GameEventDef.cs" />
-    <Compile Include="SegB_GameEventDefDB\GameEventDefDB.cs" />
-    <Compile Include="Seg8_QuestDefDB\QuestDefDB.cs" />
-    <Compile Include="Seg9_WeenieDefaults\WeenieDefaults.cs" />
-    <Compile Include="SegA_MutationFilters\EffectArgument.cs" />
-    <Compile Include="SegA_MutationFilters\MutationFilters.cs" />
-    <Compile Include="SegA_MutationFilters\Mutation.cs" />
-    <Compile Include="SegA_MutationFilters\MutationOutcome.cs" />
-    <Compile Include="SegA_MutationFilters\MutationEffectList.cs" />
-    <Compile Include="SegA_MutationFilters\MutationEffect.cs" />
-    <Compile Include="Seg4_CraftTable\Recipe.cs" />
-    <Compile Include="Seg4_CraftTable\Recipe_Component.cs" />
-    <Compile Include="Seg4_CraftTable\Recipe_Requirement.cs" />
-    <Compile Include="Seg4_CraftTable\Recipe_Mod.cs" />
-    <Compile Include="Form1.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
-    </Compile>
-    <Compile Include="IUnpackable.cs" />
-    <Compile Include="ParserControl.cs">
+    <Compile Update="ParserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="ParserControl.Designer.cs">
-      <DependentUpon>ParserControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Seg2_SpellTableExtendedData\Spell.cs" />
-    <Compile Include="Seg8_QuestDefDB\QuestDef.cs" />
-    <Compile Include="Segment.cs" />
-    <Compile Include="SQLBuilderControl.cs">
+    <Compile Update="SQLBuilderControl.cs">
       <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="SQLBuilderControl.Designer.cs">
-      <DependentUpon>SQLBuilderControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Util.cs" />
-    <Compile Include="Common\Angles.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Attribute.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Attribute2.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Attributes.cs" />
-    <Compile Include="Seg9_WeenieDefaults\BodyPart.cs" />
-    <Compile Include="Seg9_WeenieDefaults\ArmorValues.cs" />
-    <Compile Include="Seg9_WeenieDefaults\BodyPartSD.cs" />
-    <Compile Include="Seg9_WeenieDefaults\AnimPart.cs" />
-    <Compile Include="Seg9_WeenieDefaults\SubPalette.cs" />
-    <Compile Include="Seg9_WeenieDefaults\TextureMap.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Palette.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Item.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Emote.cs" />
-    <Compile Include="Seg9_WeenieDefaults\EmoteAction.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Frame.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Generator.cs" />
-    <Compile Include="Common\Origin.cs" />
-    <Compile Include="Seg9_WeenieDefaults\PageData.cs" />
-    <Compile Include="Seg9_WeenieDefaults\PagesData.cs" />
-    <Compile Include="Common\Position.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Skill.cs" />
-    <Compile Include="Seg9_WeenieDefaults\Weenie.cs" />
-    <Compile Include="Seg6_LandBlockExtendedData\Landblock.cs" />
-    <Compile Include="Seg6_LandBlockExtendedData\Link.cs" />
-    <Compile Include="Seg6_LandBlockExtendedData\Weenie.cs" />
-    <EmbeddedResource Include="Form1.resx">
-      <DependentUpon>Form1.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ParserControl.resx">
-      <DependentUpon>ParserControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-      <DesignTime>True</DesignTime>
-    </Compile>
-    <EmbeddedResource Include="SQLBuilderControl.resx">
-      <DependentUpon>SQLBuilderControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <PackageReference Include="log4net">
+      <Version>2.0.12</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <Version>3.1.10</Version>
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>13.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql">
+      <Version>3.2.4</Version>
+    </PackageReference>
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
   </ItemGroup>
-  <ItemGroup />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('packages\Microsoft.EntityFrameworkCore.Design.2.2.6\build\net461\Microsoft.EntityFrameworkCore.Design.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.EntityFrameworkCore.Design.2.2.6\build\net461\Microsoft.EntityFrameworkCore.Design.props'))" />
-  </Target>
 </Project>

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 
 using PhatACCacheBinParser.Common;
 
@@ -10,7 +10,7 @@ namespace PhatACCacheBinParser.Seg9_WeenieDefaults
 		public float Delay;
 		public float Extent;
 
-		public int? Motion;
+		public uint? Motion;
 
 		public string Message;
 		public string TestString;
@@ -180,7 +180,7 @@ namespace PhatACCacheBinParser.Seg9_WeenieDefaults
 
 				case 5:
 				case 52:
-					Motion = binaryReader.ReadInt32();
+					Motion = binaryReader.ReadUInt32();
 					break;
 
 				case 4:
