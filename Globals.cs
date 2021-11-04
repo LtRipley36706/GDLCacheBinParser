@@ -225,31 +225,143 @@ namespace PhatACCacheBinParser
 
                 var weenies = new List<ACE.Database.Models.World.Weenie>();
 
-                var results = WorldDbContext.Weenie
-                    .AsNoTracking()
-                    .ToList();
+                //var results = WorldDbContext.Weenie
+                //    .AsNoTracking()
+                //    .ToList();
 
-                Parallel.ForEach(results, result =>
+                //Parallel.ForEach(results, result =>
+                //{
+                //    var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
+                //    optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+
+                //    var worldDbContext = new WorldDbContext(optionsBuilder.Options);
+
+                //    var weenie = WorldDatabase.GetWeenie(worldDbContext, result.ClassId);
+
+                //    weenies.Add(weenie);
+
+                //    if (updateWeenieNames && weenie != null)
+                //    {
+                //        var name = weenie.GetProperty(PropertyString.Name);
+
+                //        if (!String.IsNullOrEmpty(name))
+                //            WeenieNames[weenie.ClassId] = name;
+                //    }
+                //});
+
+                //var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+
+                //using (var context = new WorldDbContext(optionsBuilder.Options))
+                //{
+                //    context.Weenie.Load();
+
+                //    // Base properties for every weenie (ACBaseQualities)
+                //    context.WeeniePropertiesBool.Load();
+                //    context.WeeniePropertiesDID.Load();
+                //    context.WeeniePropertiesFloat.Load();
+                //    context.WeeniePropertiesIID.Load();
+                //    context.WeeniePropertiesInt.Load();
+                //    context.WeeniePropertiesInt64.Load();
+                //    context.WeeniePropertiesPosition.Load();
+                //    context.WeeniePropertiesString.Load();
+
+                //    context.WeeniePropertiesAnimPart.Load();
+
+                //    //if (isCreature)
+                //    {
+                //        context.WeeniePropertiesAttribute.Load();
+                //        context.WeeniePropertiesAttribute2nd.Load();
+
+                //        context.WeeniePropertiesBodyPart.Load();
+                //    }
+
+                //    //if (weenieType == WeenieType.Book)
+                //    {
+                //        context.WeeniePropertiesBook.Load();
+                //        context.WeeniePropertiesBookPageData.Load();
+                //    }
+
+                //    context.WeeniePropertiesCreateList.Load();
+                //    context.WeeniePropertiesEmote.Load();
+                //    context.WeeniePropertiesEmoteAction.Load();
+                //    context.WeeniePropertiesEventFilter.Load();
+
+                //    context.WeeniePropertiesGenerator.Load();
+                //    context.WeeniePropertiesPalette.Load();
+
+                //    //if (isCreature)
+                //    {
+                //        context.WeeniePropertiesSkill.Load();
+                //    }
+
+                //    context.WeeniePropertiesSpellBook.Load();
+
+                //    context.WeeniePropertiesTextureMap.Load();
+
+                //    //return context.Weenie.ToList();
+
+                //    Weenies = context.Weenie.ToList();
+                //}
+
+                //Weenies = weenies;
+
+                WorldDbContext.Weenie.Load();
+
+                // Base properties for every weenie (ACBaseQualities)
+                WorldDbContext.WeeniePropertiesBool.Load();
+                WorldDbContext.WeeniePropertiesDID.Load();
+                WorldDbContext.WeeniePropertiesFloat.Load();
+                WorldDbContext.WeeniePropertiesIID.Load();
+                WorldDbContext.WeeniePropertiesInt.Load();
+                WorldDbContext.WeeniePropertiesInt64.Load();
+                WorldDbContext.WeeniePropertiesPosition.Load();
+                WorldDbContext.WeeniePropertiesString.Load();
+
+                WorldDbContext.WeeniePropertiesAnimPart.Load();
+
+                //if (isCreature)
                 {
-                    var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
-                    optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                    WorldDbContext.WeeniePropertiesAttribute.Load();
+                    WorldDbContext.WeeniePropertiesAttribute2nd.Load();
 
-                    var worldDbContext = new WorldDbContext(optionsBuilder.Options);
+                    WorldDbContext.WeeniePropertiesBodyPart.Load();
+                }
 
-                    var weenie = WorldDatabase.GetWeenie(worldDbContext, result.ClassId);
+                //if (weenieType == WeenieType.Book)
+                {
+                    WorldDbContext.WeeniePropertiesBook.Load();
+                    WorldDbContext.WeeniePropertiesBookPageData.Load();
+                }
 
-                    weenies.Add(weenie);
+                WorldDbContext.WeeniePropertiesCreateList.Load();
+                WorldDbContext.WeeniePropertiesEmote.Load();
+                WorldDbContext.WeeniePropertiesEmoteAction.Load();
+                WorldDbContext.WeeniePropertiesEventFilter.Load();
 
-                    if (updateWeenieNames && weenie != null)
+                WorldDbContext.WeeniePropertiesGenerator.Load();
+                WorldDbContext.WeeniePropertiesPalette.Load();
+
+                //if (isCreature)
+                {
+                    WorldDbContext.WeeniePropertiesSkill.Load();
+                }
+
+                WorldDbContext.WeeniePropertiesSpellBook.Load();
+
+                WorldDbContext.WeeniePropertiesTextureMap.Load();
+
+                Weenies = WorldDbContext.Weenie.ToList();
+
+                if (updateWeenieNames && Weenies != null)
+                {
+                    foreach (var weenie in Weenies)
                     {
                         var name = weenie.GetProperty(PropertyString.Name);
-
                         if (!String.IsNullOrEmpty(name))
                             WeenieNames[weenie.ClassId] = name;
                     }
-                });
-
-                Weenies = weenies;
+                }
             }
 
             public static ACE.Database.Models.World.Weenie GetWeenie(uint weenieClassId, bool updateWeenieNames = true)

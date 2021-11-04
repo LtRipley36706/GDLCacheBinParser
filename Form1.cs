@@ -781,7 +781,8 @@ namespace PhatACCacheBinParser
             txtACEDatabaseConnector.Text += "Caching all weenies in parallel. This may take several minutes and consume lots of CPU...";
 	        txtACEDatabaseConnector.Refresh();
             Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
-	        txtACEDatabaseConnector.Text += $" completed. {Globals.ACEDatabase.WorldDatabase.GetWeenieCacheCount():N0} weenies cached." + Environment.NewLine;
+            //txtACEDatabaseConnector.Text += $" completed. {Globals.ACEDatabase.WorldDatabase.GetWeenieCacheCount():N0} weenies cached." + Environment.NewLine;
+            txtACEDatabaseConnector.Text += $" completed. {Globals.ACEDatabase.WorldDbContext.Weenie.Count():N0} weenies cached." + Environment.NewLine;
 
             cmdACEDatabaseCacheAllWeenies.Enabled = true;
         }
@@ -797,11 +798,20 @@ namespace PhatACCacheBinParser
         {
             cmdACE1RegionsParse.Enabled = false;
 
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting regions from database... ";
+
+            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
             var cacheRegion = Globals.CacheBin.RegionDescExtendedData.ConvertToACE(Globals.CacheBin.LandBlockData);
 
-            var results = Globals.ACEDatabase.WorldDbContext.Encounter
-                    .AsNoTracking()
-                    .ToList();
+            //var results = Globals.ACEDatabase.WorldDbContext.Encounter
+            //        .AsNoTracking()
+            //        .ToList();
+
+            Globals.ACEDatabase.WorldDbContext.Encounter.Load();
+            var results = Globals.ACEDatabase.WorldDbContext.Encounter.ToList();
 
             var x = new Dictionary<int, List<ACE.Database.Models.World.Encounter>>();
 
@@ -892,8 +902,63 @@ namespace PhatACCacheBinParser
                     deDuped.Add(q);
             }
 
+            foreach (var thing in deDuped)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
             if (deDuped.Count > 0)
-                RegionDescSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\SQL\\", Globals.WeenieNames, true);
+                //RegionDescSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\SQL\\", Globals.WeenieNames, true);
+                RegionDescSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\", Globals.WeenieNames, true);
+
+            var cacheLbs = cacheRegion.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
+            var encounterLbs = results.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
+            var deDupeLbs = deDuped.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
+
+            var deletedLbs = cacheLbs.Except(encounterLbs).Except(deDupeLbs).ToHashSet();
+
+            if (deletedLbs.Count > 0)
+            {
+                var sqlWriter = new ACE.Database.SQLFormatters.World.EncounterSQLWriter();
+
+                sqlWriter.WeenieNames = Globals.WeenieNames;
+
+                //Parallel.ForEach(sortedInput, kvp =>
+                ////foreach (var kvp in sortedInput)
+                //{
+                //    string fileName = sqlWriter.GetDefaultFileName(kvp.Value[0]);
+
+                //    using (StreamWriter writer = new StreamWriter(outputFolder + fileName))
+                //    {
+                //        if (includeDELETEStatementBeforeInsert)
+                //        {
+                //            sqlWriter.CreateSQLDELETEStatement(kvp.Value, writer);
+                //            writer.WriteLine();
+                //        }
+
+                //        sqlWriter.CreateSQLINSERTStatement(kvp.Value, writer);
+                //    }
+                //});
+
+                foreach (var lb in deletedLbs)
+                {
+                    var thing = new List<ACE.Database.Models.World.Encounter> { new ACE.Database.Models.World.Encounter { Landblock = lb } };
+
+                    string fileName = sqlWriter.GetDefaultFileName(thing[0]);
+
+                    //using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\SQL\\" + fileName.Replace(".sql", " - DELETED.sql")))
+                    using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\" + fileName.Replace(".sql", " - DELETED.sql")))
+                    {
+                        sqlWriter.CreateSQLDELETEStatement(thing, writer);
+                        //writer.WriteLine();
+                    }
+                }
+            }
+
+            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} encounters for a combined total of {deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} regions exported." + Environment.NewLine;
+
+            //txtACEDatabaseConnector.Text += $"Skipped {cacheRegion.Count - deDuped.Count:N0} encounters for a combined total of {cacheRegion.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count - deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} unchanged regions." + Environment.NewLine;
+
+            //var z = cacheRegion.Where(x => !deDupeLbs.Contains(x.Landblock)).ToList();
+            txtACEDatabaseConnector.Text += $"Skipped {cacheRegion.Where(x => !deDupeLbs.Contains(x.Landblock)).ToList().Count:N0} encounters for a combined total of {cacheLbs.Except(deDupeLbs).Except(deletedLbs).Count():N0} unchanged regions." + Environment.NewLine;
 
             cmdACE1RegionsParse.Enabled = true;
         }
@@ -902,11 +967,20 @@ namespace PhatACCacheBinParser
         {
             cmdACE2SpellsParse.Enabled = false;
 
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting spells from database... ";
+
+            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
             var cacheSpells = Globals.CacheBin.SpellTableExtendedData.ConvertToACE();
 
-            var results = Globals.ACEDatabase.WorldDbContext.Spell
-                    .AsNoTracking()
-                    .ToList();
+            //var results = Globals.ACEDatabase.WorldDbContext.Spell
+            //        .AsNoTracking()
+            //        .ToList();
+
+            Globals.ACEDatabase.WorldDbContext.Spell.Load();
+            var results = Globals.ACEDatabase.WorldDbContext.Spell.ToList();
 
             var x = cacheSpells.ToDictionary(z => z.Id, z => z);
 
@@ -918,17 +992,74 @@ namespace PhatACCacheBinParser
 
                 if (x.ContainsKey(q.Id))
                 {
+                    //if (q.Id == 3411)
+                    //    Console.WriteLine();
+
                     var s = x[q.Id];
 
-                    if (q.Align != s.Align || q.BaseIntensity != s.BaseIntensity || q.Boost != s.Boost || q.BoostVariance != s.BoostVariance || q.CreateOffsetOriginX != s.CreateOffsetOriginX || q.CreateOffsetOriginY != s.CreateOffsetOriginY || q.CreateOffsetOriginZ != s.CreateOffsetOriginZ
-                        || q.CritFreq != s.CritFreq || q.CritMultiplier != s.CritMultiplier || q.DamageRatio != s.DamageRatio || q.DamageType != s.DamageType || q.DefaultLaunchAngle != s.DefaultLaunchAngle || q.Destination != s.Destination || q.DimsOriginX != s.DimsOriginX
-                        || q.DimsOriginY != s.DimsOriginY || q.DimsOriginZ != s.DimsOriginZ || q.DispelSchool != s.DispelSchool || q.DotDuration != s.DotDuration || q.DrainPercentage != s.DrainPercentage || q.ElementalModifier != s.ElementalModifier || q.EType != s.EType
-                        || q.IgnoreMagicResist != s.IgnoreMagicResist || q.ImbuedEffect != s.ImbuedEffect || q.Index != s.Index || q.Link != s.Link || q.LossPercent != s.LossPercent || q.MaxBoostAllowed != s.MaxBoostAllowed || q.MaxPower != s.MaxPower || q.MinPower != s.MinPower
-                        || q.Name != s.Name || q.NonTracking != s.NonTracking || q.Number != s.Number || q.NumberVariance != s.NumberVariance || q.NumProjectiles != s.NumProjectiles || q.NumProjectilesVariance != s.NumProjectilesVariance || q.PaddingOriginX != s.PaddingOriginX
-                        || q.PaddingOriginY != s.PaddingOriginY || q.PaddingOriginZ != s.PaddingOriginZ || q.PeturbationOriginX != s.PeturbationOriginX || q.PeturbationOriginY != s.PeturbationOriginY || q.PeturbationOriginZ != s.PeturbationOriginZ || q.PositionAnglesW != s.PositionAnglesW
-                        || q.PositionAnglesX != s.PositionAnglesX || q.PositionAnglesY != s.PositionAnglesY || q.PositionAnglesZ != s.PositionAnglesZ || q.PositionObjCellId != s.PositionObjCellId || q.PositionOriginX != s.PositionOriginX || q.PositionOriginY != s.PositionOriginY
-                        || q.PositionOriginZ != s.PositionOriginZ || q.PowerVariance != s.PowerVariance || q.Proportion != s.Proportion || q.SlayerCreatureType != s.SlayerCreatureType || q.SlayerDamageBonus != s.SlayerDamageBonus || q.Source != s.Source || q.SourceLoss != s.SourceLoss
-                        || q.SpreadAngle != s.SpreadAngle || q.StatModKey != s.StatModKey || q.StatModType != s.StatModType || q.StatModVal != s.StatModVal || q.TransferBitfield != s.TransferBitfield || q.TransferCap != s.TransferCap || q.Variance != s.Variance || q.VerticalAngle != s.VerticalAngle
+                    if (q.Align != s.Align
+                        || q.BaseIntensity != s.BaseIntensity
+                        || q.Boost != s.Boost
+                        || q.BoostVariance != s.BoostVariance
+                        || !ApproximatelyEqualEpsilon(q.CreateOffsetOriginX, s.CreateOffsetOriginX, float.Epsilon) //q.CreateOffsetOriginX != s.CreateOffsetOriginX
+                        || !ApproximatelyEqualEpsilon(q.CreateOffsetOriginY, s.CreateOffsetOriginY, float.Epsilon) //q.CreateOffsetOriginY != s.CreateOffsetOriginY
+                        || !ApproximatelyEqualEpsilon(q.CreateOffsetOriginZ, s.CreateOffsetOriginZ, float.Epsilon) //q.CreateOffsetOriginZ != s.CreateOffsetOriginZ
+                        || q.CritFreq != s.CritFreq
+                        || q.CritMultiplier != s.CritMultiplier
+                        || !ApproximatelyEqualEpsilon(q.DamageRatio, s.DamageRatio, float.Epsilon) //q.DamageRatio != s.DamageRatio
+                        || q.DamageType != s.DamageType
+                        || !ApproximatelyEqualEpsilon(q.DefaultLaunchAngle, s.DefaultLaunchAngle, float.Epsilon) //q.DefaultLaunchAngle != s.DefaultLaunchAngle
+                        || q.Destination != s.Destination
+                        || !ApproximatelyEqualEpsilon(q.DimsOriginX, s.DimsOriginX, float.Epsilon) //q.DimsOriginX != s.DimsOriginX
+                        || !ApproximatelyEqualEpsilon(q.DimsOriginY, s.DimsOriginY, float.Epsilon) //q.DimsOriginY != s.DimsOriginY
+                        || !ApproximatelyEqualEpsilon(q.DimsOriginY, s.DimsOriginY, float.Epsilon) //q.DimsOriginY != s.DimsOriginZ
+                        || q.DispelSchool != s.DispelSchool
+                        || q.DotDuration != s.DotDuration
+                        || !ApproximatelyEqualEpsilon(q.DrainPercentage, s.DrainPercentage, float.Epsilon) //q.DrainPercentage != s.DrainPercentage
+                        || q.ElementalModifier != s.ElementalModifier
+                        || q.EType != s.EType
+                        || q.IgnoreMagicResist != s.IgnoreMagicResist
+                        || q.ImbuedEffect != s.ImbuedEffect
+                        || q.Index != s.Index
+                        || q.Link != s.Link
+                        || !ApproximatelyEqualEpsilon(q.LossPercent, s.LossPercent, float.Epsilon) //q.LossPercent != s.LossPercent
+                        || q.MaxBoostAllowed != s.MaxBoostAllowed
+                        || q.MaxPower != s.MaxPower
+                        || q.MinPower != s.MinPower
+                        || q.Name != s.Name
+                        || q.NonTracking != s.NonTracking
+                        || q.Number != s.Number
+                        || !ApproximatelyEqualEpsilon(q.NumberVariance, s.NumberVariance, float.Epsilon) //q.NumberVariance != s.NumberVariance
+                        || q.NumProjectiles != s.NumProjectiles
+                        || q.NumProjectilesVariance != s.NumProjectilesVariance
+                        || !ApproximatelyEqualEpsilon(q.PaddingOriginX, s.PaddingOriginX, float.Epsilon) //q.PaddingOriginX != s.PaddingOriginX
+                        || !ApproximatelyEqualEpsilon(q.PaddingOriginX, s.PaddingOriginX, float.Epsilon) //q.PaddingOriginX != s.PaddingOriginY
+                        || !ApproximatelyEqualEpsilon(q.PaddingOriginZ, s.PaddingOriginZ, float.Epsilon) //q.PaddingOriginZ != s.PaddingOriginZ
+                        || !ApproximatelyEqualEpsilon(q.PeturbationOriginX, s.PeturbationOriginX, float.Epsilon) //q.PeturbationOriginX != s.PeturbationOriginX
+                        || !ApproximatelyEqualEpsilon(q.PeturbationOriginY, s.PeturbationOriginY, float.Epsilon) //q.PeturbationOriginY != s.PeturbationOriginY
+                        || !ApproximatelyEqualEpsilon(q.PeturbationOriginZ, s.PeturbationOriginZ, float.Epsilon) // q.PeturbationOriginZ != s.PeturbationOriginZ
+                        || !ApproximatelyEqualEpsilon(q.PositionAnglesW, s.PositionAnglesW, float.Epsilon) //q.PositionAnglesW != s.PositionAnglesW
+                        || !ApproximatelyEqualEpsilon(q.PositionAnglesX, s.PositionAnglesX, float.Epsilon) //q.PositionAnglesX != s.PositionAnglesX
+                        || !ApproximatelyEqualEpsilon(q.PositionAnglesY, s.PositionAnglesY, float.Epsilon) //q.PositionAnglesY != s.PositionAnglesY
+                        || !ApproximatelyEqualEpsilon(q.PositionAnglesZ, s.PositionAnglesZ, float.Epsilon) //q.PositionAnglesZ != s.PositionAnglesZ
+                        || q.PositionObjCellId != s.PositionObjCellId
+                        || !ApproximatelyEqualEpsilon(q.PositionOriginX, s.PositionOriginX, float.Epsilon) //q.PositionOriginX != s.PositionOriginX
+                        || !ApproximatelyEqualEpsilon(q.PositionOriginY, s.PositionOriginY, float.Epsilon) //q.PositionOriginY != s.PositionOriginY
+                        || !ApproximatelyEqualEpsilon(q.PositionOriginZ, s.PositionOriginZ, float.Epsilon) //q.PositionOriginZ != s.PositionOriginZ
+                        || !ApproximatelyEqualEpsilon(q.PowerVariance, s.PowerVariance, float.Epsilon) //q.PowerVariance != s.PowerVariance
+                        || !ApproximatelyEqualEpsilon(q.Proportion, s.Proportion, float.Epsilon) //q.Proportion != s.Proportion
+                        || q.SlayerCreatureType != s.SlayerCreatureType
+                        || !ApproximatelyEqualEpsilon(q.SlayerDamageBonus, s.SlayerDamageBonus, float.Epsilon) //q.SlayerDamageBonus != s.SlayerDamageBonus
+                        || q.Source != s.Source
+                        || q.SourceLoss != s.SourceLoss
+                        || !ApproximatelyEqualEpsilon(q.SpreadAngle, s.SpreadAngle, float.Epsilon) //q.SpreadAngle != s.SpreadAngle
+                        || q.StatModKey != s.StatModKey
+                        || q.StatModType != s.StatModType
+                        || !ApproximatelyEqualEpsilon(q.StatModVal, s.StatModVal, float.Epsilon) //q.StatModVal != s.StatModVal
+                        || q.TransferBitfield != s.TransferBitfield
+                        || q.TransferCap != s.TransferCap
+                        || q.Variance != s.Variance
+                        || !ApproximatelyEqualEpsilon(q.VerticalAngle, s.VerticalAngle, float.Epsilon) //q.VerticalAngle != s.VerticalAngle
                         || q.Wcid != s.Wcid
                         )
                         deDuped.Add(q);
@@ -937,14 +1068,69 @@ namespace PhatACCacheBinParser
                     deDuped.Add(q);
             }
 
-            SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
+            foreach (var thing in deDuped)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
+            SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\", Globals.WeenieNames, true);
+
+            var cacheIds = cacheSpells.Select(x => x.Id).ToHashSet();
+            var spellIds = results.Select(x => x.Id).ToHashSet();
+            var deDupeIds = deDuped.Select(x => x.Id).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} spells exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged spells." + Environment.NewLine;
 
             cmdACE2SpellsParse.Enabled = true;
+        }
+
+        public static bool ApproximatelyEqualEpsilon(float? a, float? b, float epsilon, int places = 6)
+        {
+            if (a == null && b == null)
+                return true;
+
+            if (a == null || b == null)
+                return false;
+
+            //const float floatNormal = (1 << 23) * float.Epsilon;
+            //float absA = Math.Abs(a.Value);
+            //float absB = Math.Abs(b.Value);
+            //float diff = Math.Abs(a.Value - b.Value);
+
+            //if (a == b)
+            //{
+            //    // Shortcut, handles infinities
+            //    return true;
+            //}
+
+            //if (a == 0.0f || b == 0.0f || diff < floatNormal)
+            //{
+            //    // a or b is zero, or both are extremely close to it.
+            //    // relative error is less meaningful here
+            //    return diff < (epsilon * floatNormal);
+            //}
+
+            //// use relative error
+            //return diff / Math.Min((absA + absB), float.MaxValue) < epsilon;
+
+            var x = Math.Abs(a.Value).ToString($"0.{new string('#', places)}");
+            var y = Math.Abs(b.Value).ToString($"0.{new string('#', places)}");
+
+            return x.Equals(y);
         }
 
         private void cmdACE3TreasureParse_Click(object sender, EventArgs e)
         {
             cmdACE3TreasureParse.Enabled = false;
+
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Treasure from database... ";
+
+            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
 
             //var cacheSpells = Globals.CacheBin.SpellTableExtendedData.ConvertToACE();
 
@@ -1024,28 +1210,97 @@ namespace PhatACCacheBinParser
 
             var deDupedTreasureWielded = new List<ACE.Database.Models.World.TreasureWielded>();
 
-            foreach (var x in treasureWielded)
+            //foreach (var x in treasureWielded)
+            //{
+            //    //x.LastModified = DateTime.Now;
+
+            //    var y = cacheTreasureWielded.FirstOrDefault(z => z.TreasureType == x.TreasureType);
+
+            //    if (y == null)
+            //        deDupedTreasureWielded.Add(x);
+            //    else
+            //    {
+            //        if (x.ContinuesPreviousSet != y.ContinuesPreviousSet || x.HasSubSet != y.HasSubSet || x.PaletteId != y.PaletteId || x.Probability != y.Probability || x.SetStart != y.SetStart || x.Shade != y.Shade || x.StackSize != y.StackSize || x.StackSizeVariance != y.StackSizeVariance
+            //            || x.TreasureType != y.TreasureType || x.Unknown1 != y.Unknown1 || x.Unknown10 != y.Unknown10 || x.Unknown11 != y.Unknown11 || x.Unknown12 != y.Unknown12 || x.Unknown3 != y.Unknown3 || x.Unknown4 != y.Unknown4 || x.Unknown5 != y.Unknown5 || x.Unknown9 != y.Unknown9
+            //            || x.WeenieClassId != y.WeenieClassId
+            //            )
+            //            deDupedTreasureWielded.Add(x);
+            //    }
+            //}
+
+            //var ids = treasureWielded.GroupBy(x => x.TreasureType).Select(y => y.First()).Select(z => z.TreasureType).Distinct().ToHashSet();
+            var ids = treasureWielded.GroupBy(x => x.TreasureType).Select(y => y.First()).Select(z => z.TreasureType).ToHashSet();
+
+            foreach (var x in ids)
             {
-                //x.LastModified = DateTime.Now;
+                var a = cacheTreasureWielded.Where(y => y.TreasureType == x).ToList();
 
-                var y = cacheTreasureWielded.FirstOrDefault(z => z.TreasureType == x.TreasureType);
-
-                if (y == null)
-                    deDupedTreasureWielded.Add(x);
+                if (a == null)
+                    deDupedTreasureWielded.AddRange(treasureWielded.Where(y => y.TreasureType == x));
                 else
                 {
-                    if (x.ContinuesPreviousSet != y.ContinuesPreviousSet || x.HasSubSet != y.HasSubSet || x.PaletteId != y.PaletteId || x.Probability != y.Probability || x.SetStart != y.SetStart || x.Shade != y.Shade || x.StackSize != y.StackSize || x.StackSizeVariance != y.StackSizeVariance
-                        || x.TreasureType != y.TreasureType || x.Unknown1 != y.Unknown1 || x.Unknown10 != y.Unknown10 || x.Unknown11 != y.Unknown11 || x.Unknown12 != y.Unknown12 || x.Unknown3 != y.Unknown3 || x.Unknown4 != y.Unknown4 || x.Unknown5 != y.Unknown5 || x.Unknown9 != y.Unknown9
-                        || x.WeenieClassId != y.WeenieClassId
-                        )
-                        deDupedTreasureWielded.Add(x);
+                    var b = treasureWielded.Where(y => y.TreasureType == x).ToList();
+
+                    if (a.Count != b.Count)
+                        deDupedTreasureWielded.AddRange(b);
+                    else
+                    {
+                        for (var y = 0; y < b.Count; y++)
+                        {
+                            if (
+                                   b[y].ContinuesPreviousSet != a[y].ContinuesPreviousSet
+                                || b[y].HasSubSet != a[y].HasSubSet
+                                || b[y].PaletteId != a[y].PaletteId
+                                || b[y].Probability != a[y].Probability
+                                || b[y].SetStart != a[y].SetStart
+                                || b[y].Shade != a[y].Shade
+                                || b[y].StackSize != a[y].StackSize
+                                || b[y].StackSizeVariance != a[y].StackSizeVariance
+                                || b[y].Unknown1 != a[y].Unknown1
+                                || b[y].Unknown10 != a[y].Unknown10
+                                || b[y].Unknown11 != a[y].Unknown11
+                                || b[y].Unknown12 != a[y].Unknown12
+                                || b[y].Unknown3 != a[y].Unknown3
+                                || b[y].Unknown4 != a[y].Unknown4
+                                || b[y].Unknown5 != a[y].Unknown5
+                                || b[y].Unknown9 != a[y].Unknown9
+                                || b[y].WeenieClassId != a[y].WeenieClassId
+                                )
+                            {
+                                deDupedTreasureWielded.AddRange(b);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
-            TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Death\\", true);
-            TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Wielded\\", Globals.WeenieNames, true);
+            foreach (var thing in deDupedTreasureDeath)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            foreach (var thing in deDupedTreasureWielded)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Death\\", true);
+            //TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Wielded\\", Globals.WeenieNames, true);
+            TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Death\\", true);
+            TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Wielded\\", Globals.WeenieNames, true);
 
             //SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
+
+            var cacheTDIds = cacheTreasureDeath.Select(x => x.TreasureType).ToHashSet();
+            var cacheTWIds = cacheTreasureWielded.Select(x => x.TreasureType).ToHashSet();
+            var tdIds = treasureDeath.Select(x => x.TreasureType).ToHashSet();
+            var twIds = treasureWielded.Select(x => x.TreasureType).ToHashSet();
+            var deDupeTDIds = deDupedTreasureDeath.Select(x => x.TreasureType).ToHashSet();
+            var deDupeTWIds = deDupedTreasureWielded.Select(x => x.TreasureType).ToHashSet();
+
+            var deletedTDIds = cacheTDIds.Except(tdIds).Except(deDupeTDIds).ToHashSet();
+            var deletedTWIds = cacheTWIds.Except(twIds).Except(deDupeTWIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedTreasureDeath.Count:N0} death treasure and {deDupedTreasureWielded.GroupBy(x => x.TreasureType).Select(g => g.First()).ToList().Count:N0} wielded treasure exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheTDIds.Except(deDupeTDIds).Except(deletedTDIds).Count():N0} unchanged death treasure and {cacheTWIds.Except(deDupeTWIds).Except(deletedTWIds).Count():N0} unchanged wielded treasure." + Environment.NewLine;
 
             cmdACE3TreasureParse.Enabled = true;
         }
@@ -1054,35 +1309,523 @@ namespace PhatACCacheBinParser
         {
             cmdACE4CraftingParse.Enabled = false;
 
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Crafting from database... ";
+
+            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
             var cacheCraftingTables = Globals.CacheBin.CraftingTable.ConvertToACE();
 
-            var cookBooks = Globals.ACEDatabase.WorldDbContext.CookBook
-                    .AsNoTracking()
-                    .ToList();
+            //var cookBooks = Globals.ACEDatabase.WorldDbContext.CookBook
+            //        .AsNoTracking()
+            //        .ToList();
 
-            var recipes = Globals.ACEDatabase.WorldDbContext.Recipe
-                    .AsNoTracking()
-                    .Include(r => r.RecipeMod)
-                        .ThenInclude(r => r.RecipeModsBool)
-                    .Include(r => r.RecipeMod)
-                        .ThenInclude(r => r.RecipeModsDID)
-                    .Include(r => r.RecipeMod)
-                        .ThenInclude(r => r.RecipeModsFloat)
-                    .Include(r => r.RecipeMod)
-                        .ThenInclude(r => r.RecipeModsIID)
-                    .Include(r => r.RecipeMod)
-                        .ThenInclude(r => r.RecipeModsInt)
-                    .Include(r => r.RecipeMod)
-                        .ThenInclude(r => r.RecipeModsString)
-                    .Include(r => r.RecipeRequirementsBool)
-                    .Include(r => r.RecipeRequirementsDID)
-                    .Include(r => r.RecipeRequirementsFloat)
-                    .Include(r => r.RecipeRequirementsIID)
-                    .Include(r => r.RecipeRequirementsInt)
-                    .Include(r => r.RecipeRequirementsString)
-                    .ToList();
+            //var recipes = Globals.ACEDatabase.WorldDbContext.Recipe
+            //        .AsNoTracking()
+            //        .Include(r => r.RecipeMod)
+            //            .ThenInclude(r => r.RecipeModsBool)
+            //        .Include(r => r.RecipeMod)
+            //            .ThenInclude(r => r.RecipeModsDID)
+            //        .Include(r => r.RecipeMod)
+            //            .ThenInclude(r => r.RecipeModsFloat)
+            //        .Include(r => r.RecipeMod)
+            //            .ThenInclude(r => r.RecipeModsIID)
+            //        .Include(r => r.RecipeMod)
+            //            .ThenInclude(r => r.RecipeModsInt)
+            //        .Include(r => r.RecipeMod)
+            //            .ThenInclude(r => r.RecipeModsString)
+            //        .Include(r => r.RecipeRequirementsBool)
+            //        .Include(r => r.RecipeRequirementsDID)
+            //        .Include(r => r.RecipeRequirementsFloat)
+            //        .Include(r => r.RecipeRequirementsIID)
+            //        .Include(r => r.RecipeRequirementsInt)
+            //        .Include(r => r.RecipeRequirementsString)
+            //        .ToList();
 
-            CraftingSQLWriter.WriteFiles(recipes, cookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\", true);
+            Globals.ACEDatabase.WorldDbContext.CookBook.Load();
+            Globals.ACEDatabase.WorldDbContext.Recipe.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeMod.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeModsBool.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeModsDID.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeModsFloat.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeModsIID.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeModsInt.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeModsString.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeRequirementsBool.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeRequirementsDID.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeRequirementsFloat.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeRequirementsIID.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeRequirementsInt.Load();
+            Globals.ACEDatabase.WorldDbContext.RecipeRequirementsString.Load();
+            //var results = Globals.ACEDatabase.WorldDbContext.Encounter.ToList();
+            var cookBooks = Globals.ACEDatabase.WorldDbContext.CookBook.ToList();
+            var recipes = Globals.ACEDatabase.WorldDbContext.Recipe.ToList();
+
+            var deDupedCookBooks = new List<ACE.Database.Models.World.CookBook>();
+            var deDupedRecipes = new List<ACE.Database.Models.World.Recipe>();
+
+            var deDupeRecipeIds = new HashSet<uint>();
+
+            foreach (var cookBook in cookBooks)
+            {
+                var cacheCookbook = cacheCraftingTables.CookBooks.FirstOrDefault(x => x.RecipeId == cookBook.RecipeId && x.SourceWCID == cookBook.SourceWCID && x.TargetWCID == cookBook.TargetWCID);
+
+                if (cacheCookbook == null)
+                    deDupeRecipeIds.Add(cookBook.RecipeId);
+            }        
+
+            foreach (var recipe in recipes)
+            {
+                var cacheRecipe = cacheCraftingTables.Recipies.FirstOrDefault(x => x.Id == recipe.Id);
+
+                if (cacheRecipe == null)
+                {
+                    deDupeRecipeIds.Add(recipe.Id);
+                    continue;
+                }
+
+                if (
+                       recipe.DataId != cacheRecipe.DataId
+                    || recipe.Difficulty != cacheRecipe.Difficulty
+                    || recipe.FailAmount != cacheRecipe.FailAmount
+                    || recipe.FailDestroySourceAmount != cacheRecipe.FailDestroySourceAmount
+                    || recipe.FailDestroySourceChance != cacheRecipe.FailDestroySourceChance
+                    || recipe.FailDestroySourceMessage != cacheRecipe.FailDestroySourceMessage
+                    || recipe.FailDestroyTargetAmount != cacheRecipe.FailDestroyTargetAmount
+                    || recipe.FailDestroyTargetChance != cacheRecipe.FailDestroyTargetChance
+                    || recipe.FailDestroyTargetMessage != cacheRecipe.FailDestroyTargetMessage
+                    || recipe.FailMessage != cacheRecipe.FailMessage
+                    || recipe.FailWCID != cacheRecipe.FailWCID
+                    || recipe.RecipeMod.Count != cacheRecipe.RecipeMod.Count
+                    || recipe.RecipeRequirementsBool.Count != cacheRecipe.RecipeRequirementsBool.Count
+                    || recipe.RecipeRequirementsDID.Count != cacheRecipe.RecipeRequirementsDID.Count
+                    || recipe.RecipeRequirementsFloat.Count != cacheRecipe.RecipeRequirementsFloat.Count
+                    || recipe.RecipeRequirementsIID.Count != cacheRecipe.RecipeRequirementsIID.Count
+                    || recipe.RecipeRequirementsInt.Count != cacheRecipe.RecipeRequirementsInt.Count
+                    || recipe.RecipeRequirementsString.Count != cacheRecipe.RecipeRequirementsString.Count
+                    || recipe.SalvageType != cacheRecipe.SalvageType
+                    || recipe.Skill != cacheRecipe.Skill
+                    || recipe.SuccessAmount != cacheRecipe.SuccessAmount
+                    || recipe.SuccessDestroySourceAmount != cacheRecipe.SuccessDestroySourceAmount
+                    || recipe.SuccessDestroySourceChance != cacheRecipe.SuccessDestroySourceChance
+                    || recipe.SuccessDestroySourceMessage != cacheRecipe.SuccessDestroySourceMessage
+                    || recipe.SuccessDestroyTargetAmount != cacheRecipe.SuccessDestroyTargetAmount
+                    || recipe.SuccessDestroyTargetChance != cacheRecipe.SuccessDestroyTargetChance
+                    || recipe.SuccessDestroyTargetMessage != cacheRecipe.SuccessDestroyTargetMessage
+                    || recipe.SuccessMessage != cacheRecipe.SuccessMessage
+                    || recipe.SuccessWCID != cacheRecipe.SuccessWCID
+                    || recipe.Unknown1 != cacheRecipe.Unknown1
+                    )
+                {
+                    deDupeRecipeIds.Add(recipe.Id);
+                    continue;
+                }
+
+                var deDupe = false;
+                deDupe:
+                if (deDupe)
+                {
+                    deDupeRecipeIds.Add(recipe.Id);
+                    continue;
+                }    
+
+                for (var i = 0; i < recipe.RecipeRequirementsBool.Count; i++)
+                {
+                    var cacheReq = cacheRecipe.RecipeRequirementsBool?.ElementAt(i);
+
+                    if (cacheReq == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var req = recipe.RecipeRequirementsBool.ElementAt(i);
+
+                    if (
+                           req.Enum != cacheReq.Enum
+                        || req.Index != cacheReq.Index
+                        || req.Message != cacheReq.Message
+                        || req.Stat != cacheReq.Stat
+                        || req.Value != cacheReq.Value
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }    
+                }
+
+                for (var i = 0; i < recipe.RecipeRequirementsDID.Count; i++)
+                {
+                    var cacheReq = cacheRecipe.RecipeRequirementsDID?.ElementAt(i);
+
+                    if (cacheReq == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var req = recipe.RecipeRequirementsDID.ElementAt(i);
+
+                    if (
+                           req.Enum != cacheReq.Enum
+                        || req.Index != cacheReq.Index
+                        || req.Message != cacheReq.Message
+                        || req.Stat != cacheReq.Stat
+                        || req.Value != cacheReq.Value
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                for (var i = 0; i < recipe.RecipeRequirementsFloat.Count; i++)
+                {
+                    var cacheReq = cacheRecipe.RecipeRequirementsFloat?.ElementAt(i);
+
+                    if (cacheReq == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var req = recipe.RecipeRequirementsFloat.ElementAt(i);
+
+                    if (
+                           req.Enum != cacheReq.Enum
+                        || req.Index != cacheReq.Index
+                        || req.Message != cacheReq.Message
+                        || req.Stat != cacheReq.Stat
+                        || req.Value != cacheReq.Value
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                for (var i = 0; i < recipe.RecipeRequirementsIID.Count; i++)
+                {
+                    var cacheReq = cacheRecipe.RecipeRequirementsIID?.ElementAt(i);
+
+                    if (cacheReq == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var req = recipe.RecipeRequirementsIID.ElementAt(i);
+
+                    if (
+                           req.Enum != cacheReq.Enum
+                        || req.Index != cacheReq.Index
+                        || req.Message != cacheReq.Message
+                        || req.Stat != cacheReq.Stat
+                        || req.Value != cacheReq.Value
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                for (var i = 0; i < recipe.RecipeRequirementsInt.Count; i++)
+                {
+                    var cacheReq = cacheRecipe.RecipeRequirementsInt?.ElementAt(i);
+
+                    if (cacheReq == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var req = recipe.RecipeRequirementsInt.ElementAt(i);
+
+                    if (
+                           req.Enum != cacheReq.Enum
+                        || req.Index != cacheReq.Index
+                        || req.Message != cacheReq.Message
+                        || req.Stat != cacheReq.Stat
+                        || req.Value != cacheReq.Value
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                for (var i = 0; i < recipe.RecipeRequirementsString.Count; i++)
+                {
+                    var cacheReq = cacheRecipe.RecipeRequirementsString?.ElementAt(i);
+
+                    if (cacheReq == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var req = recipe.RecipeRequirementsString.ElementAt(i);
+
+                    if (
+                           req.Enum != cacheReq.Enum
+                        || req.Index != cacheReq.Index
+                        || req.Message != cacheReq.Message
+                        || req.Stat != cacheReq.Stat
+                        || req.Value != cacheReq.Value
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                for (var i = 0; i < recipe.RecipeMod.Count; i++)
+                {
+                    var cacheMod = cacheRecipe.RecipeMod?.ElementAt(i);
+
+                    if (cacheMod == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var mod = recipe.RecipeMod.ElementAt(i);
+
+                    if (
+                           mod.DataId != cacheMod.DataId
+                        || mod.ExecutesOnSuccess != cacheMod.ExecutesOnSuccess
+                        || mod.Health != cacheMod.Health
+                        || mod.InstanceId != cacheMod.InstanceId
+                        || mod.Mana != cacheMod.Mana
+                        || mod.RecipeModsBool.Count != cacheMod.RecipeModsBool.Count
+                        || mod.RecipeModsDID.Count != cacheMod.RecipeModsDID.Count
+                        || mod.RecipeModsFloat.Count != cacheMod.RecipeModsFloat.Count
+                        || mod.RecipeModsIID.Count != cacheMod.RecipeModsIID.Count
+                        || mod.RecipeModsInt.Count != cacheMod.RecipeModsInt.Count
+                        || mod.RecipeModsString.Count != cacheMod.RecipeModsString.Count
+                        || mod.Stamina != cacheMod.Stamina
+                        || mod.Unknown7 != cacheMod.Unknown7
+                        || mod.Unknown9 != cacheMod.Unknown9                        
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    for (var x = 0; x < mod.RecipeModsBool.Count; x++)
+                    {
+                        var cacheModReq = cacheMod.RecipeModsBool?.ElementAt(x);
+
+                        if (cacheModReq == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var modReq = mod.RecipeModsBool.ElementAt(x);
+
+                        if (
+                               modReq.Enum != cacheModReq.Enum
+                            || modReq.Index != cacheModReq.Index
+                            || modReq.Source != cacheModReq.Source
+                            || modReq.Stat != cacheModReq.Stat
+                            || modReq.Value != cacheModReq.Value
+                            )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+
+                    for (var x = 0; x < mod.RecipeModsDID.Count; x++)
+                    {
+                        var cacheModReq = cacheMod.RecipeModsDID?.ElementAt(x);
+
+                        if (cacheModReq == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var modReq = mod.RecipeModsDID.ElementAt(x);
+
+                        if (
+                               modReq.Enum != cacheModReq.Enum
+                            || modReq.Index != cacheModReq.Index
+                            || modReq.Source != cacheModReq.Source
+                            || modReq.Stat != cacheModReq.Stat
+                            || modReq.Value != cacheModReq.Value
+                            )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+
+                    for (var x = 0; x < mod.RecipeModsFloat.Count; x++)
+                    {
+                        var cacheModReq = cacheMod.RecipeModsFloat?.ElementAt(x);
+
+                        if (cacheModReq == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var modReq = mod.RecipeModsFloat.ElementAt(x);
+
+                        if (
+                               modReq.Enum != cacheModReq.Enum
+                            || modReq.Index != cacheModReq.Index
+                            || modReq.Source != cacheModReq.Source
+                            || modReq.Stat != cacheModReq.Stat
+                            || modReq.Value != cacheModReq.Value
+                            )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+
+                    for (var x = 0; x < mod.RecipeModsIID.Count; x++)
+                    {
+                        var cacheModReq = cacheMod.RecipeModsIID?.ElementAt(x);
+
+                        if (cacheModReq == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var modReq = mod.RecipeModsIID.ElementAt(x);
+
+                        if (
+                               modReq.Enum != cacheModReq.Enum
+                            || modReq.Index != cacheModReq.Index
+                            || modReq.Source != cacheModReq.Source
+                            || modReq.Stat != cacheModReq.Stat
+                            || modReq.Value != cacheModReq.Value
+                            )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+
+                    for (var x = 0; x < mod.RecipeModsInt.Count; x++)
+                    {
+                        var cacheModReq = cacheMod.RecipeModsInt?.ElementAt(x);
+
+                        if (cacheModReq == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var modReq = mod.RecipeModsInt.ElementAt(x);
+
+                        if (
+                               modReq.Enum != cacheModReq.Enum
+                            || modReq.Index != cacheModReq.Index
+                            || modReq.Source != cacheModReq.Source
+                            || modReq.Stat != cacheModReq.Stat
+                            || modReq.Value != cacheModReq.Value
+                            )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+
+                    for (var x = 0; x < mod.RecipeModsString.Count; x++)
+                    {
+                        var cacheModReq = cacheMod.RecipeModsString?.ElementAt(x);
+
+                        if (cacheModReq == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var modReq = mod.RecipeModsString.ElementAt(x);
+
+                        if (
+                               modReq.Enum != cacheModReq.Enum
+                            || modReq.Index != cacheModReq.Index
+                            || modReq.Source != cacheModReq.Source
+                            || modReq.Stat != cacheModReq.Stat
+                            || modReq.Value != cacheModReq.Value
+                            )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+                }
+            }
+
+
+            deDupedCookBooks.AddRange(cookBooks.Where(x => deDupeRecipeIds.Contains(x.RecipeId)));
+            deDupedRecipes.AddRange(recipes.Where(x => deDupeRecipeIds.Contains(x.Id)));
+
+            foreach (var thing in deDupedRecipes)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            foreach (var thing in deDupedCookBooks)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\", true);
+            CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\", true);
+
+            var cacheIds = cacheCraftingTables.Recipies.Select(x => x.Id).ToHashSet();
+            var spellIds = recipes.Select(x => x.Id).ToHashSet();
+            var deDupeIds = deDupedRecipes.Select(x => x.Id).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            if (deletedIds.Count > 0)
+            {
+                var sqlWriter = new ACE.Database.SQLFormatters.World.RecipeSQLWriter();
+
+                sqlWriter.WeenieNames = Globals.WeenieNames;
+
+                //Parallel.ForEach(sortedInput, kvp =>
+                ////foreach (var kvp in sortedInput)
+                //{
+                //    string fileName = sqlWriter.GetDefaultFileName(kvp.Value[0]);
+
+                //    using (StreamWriter writer = new StreamWriter(outputFolder + fileName))
+                //    {
+                //        if (includeDELETEStatementBeforeInsert)
+                //        {
+                //            sqlWriter.CreateSQLDELETEStatement(kvp.Value, writer);
+                //            writer.WriteLine();
+                //        }
+
+                //        sqlWriter.CreateSQLINSERTStatement(kvp.Value, writer);
+                //    }
+                //});
+
+                foreach (var lb in deletedIds)
+                {
+                    var thing = cacheCraftingTables.Recipies.FirstOrDefault(i => i.Id == lb);//new ACE.Database.Models.World.Recipe { Id = lb };
+
+                    string fileName = sqlWriter.GetDefaultFileName(thing, cacheCraftingTables.CookBooks.Where(i => i.RecipeId == lb).ToList());//new List<ACE.Database.Models.World.CookBook>());
+
+                    //using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\" + fileName.Replace(".sql"," - DELETED.sql")))
+                    using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\" + fileName.Replace(".sql", " - DELETED.sql")))
+                    {
+                        sqlWriter.CreateSQLDELETEStatement(thing, writer);
+                        //writer.WriteLine();
+                    }
+                }
+            }
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedCookBooks.Count:N0} cookbooks and {deDupedRecipes.Count:N0} recipes for a combined total of {deDupeRecipeIds.Count:N0} recipes exported." + Environment.NewLine;
+
+            //cacheRegion.Where(x => !deDupeLbs.Contains(x.Landblock)).ToList().Count
+            txtACEDatabaseConnector.Text += $"Skipped {cacheCraftingTables.CookBooks.Where(x=>!deDupeIds.Contains(x.RecipeId)).ToList().Count:N0} unchanged cookbooks and {cacheCraftingTables.Recipies.Where(x => !deDupeIds.Contains(x.Id)).ToList().Count:N0} unchanged recipes for a combined total of {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged recipes." + Environment.NewLine;
 
             cmdACE4CraftingParse.Enabled = true;
         }
@@ -1090,6 +1833,8 @@ namespace PhatACCacheBinParser
         private void cmdACE5HousingParse_Click(object sender, EventArgs e)
         {
             cmdACE5HousingParse.Enabled = false;
+
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting housing from database... ";
 
             var cacheHousePortals = Globals.CacheBin.HousingPortalsTable.ConvertToACE();
 
@@ -1132,15 +1877,31 @@ namespace PhatACCacheBinParser
                     }
                     else
                     {
-                        if (b[0].AnglesW != a[0].AnglesW || b[0].AnglesX != a[0].AnglesX || b[0].AnglesY != a[0].AnglesY || b[0].AnglesZ != a[0].AnglesZ || b[0].ObjCellId != a[0].ObjCellId
-                            || b[0].OriginX != a[0].OriginX || b[0].OriginY != a[0].OriginY || b[0].OriginZ != a[0].OriginZ)
+                        if (
+                               !ApproximatelyEqualEpsilon(b[0].AnglesW, a[0].AnglesW, float.Epsilon) //b[0].AnglesW != a[0].AnglesW
+                            || !ApproximatelyEqualEpsilon(b[0].AnglesX, a[0].AnglesX, float.Epsilon) //b[0].AnglesX != a[0].AnglesX
+                            || !ApproximatelyEqualEpsilon(b[0].AnglesY, a[0].AnglesY, float.Epsilon) //b[0].AnglesY != a[0].AnglesY
+                            || !ApproximatelyEqualEpsilon(b[0].AnglesZ, a[0].AnglesZ, float.Epsilon) //b[0].AnglesZ != a[0].AnglesZ
+                            || b[0].ObjCellId != a[0].ObjCellId
+                            || !ApproximatelyEqualEpsilon(b[0].OriginX, a[0].OriginX, float.Epsilon) //b[0].OriginX != a[0].OriginX
+                            || !ApproximatelyEqualEpsilon(b[0].OriginY, a[0].OriginY, float.Epsilon) //b[0].OriginY != a[0].OriginY
+                            || !ApproximatelyEqualEpsilon(b[0].OriginZ, a[0].OriginZ, float.Epsilon) //b[0].OriginZ != a[0].OriginZ
+                            )
                         {
                             deDuped.Add(q);
                         }
                         else if (b.Count == a.Count && b.Count == 2)
                         {
-                            if (b[1].AnglesW != a[1].AnglesW || b[1].AnglesX != a[1].AnglesX || b[1].AnglesY != a[1].AnglesY || b[1].AnglesZ != a[1].AnglesZ || b[1].ObjCellId != a[1].ObjCellId
-                            || b[1].OriginX != a[1].OriginX || b[1].OriginY != a[1].OriginY || b[1].OriginZ != a[1].OriginZ)
+                            if (
+                                   !ApproximatelyEqualEpsilon(b[1].AnglesW, a[1].AnglesW, float.Epsilon) //b[1].AnglesW != a[1].AnglesW
+                                || !ApproximatelyEqualEpsilon(b[1].AnglesX, a[1].AnglesX, float.Epsilon) //b[1].AnglesX != a[1].AnglesX
+                                || !ApproximatelyEqualEpsilon(b[1].AnglesY, a[1].AnglesY, float.Epsilon) //b[1].AnglesY != a[1].AnglesY
+                                || !ApproximatelyEqualEpsilon(b[1].AnglesZ, a[1].AnglesZ, float.Epsilon) //b[1].AnglesZ != a[1].AnglesZ
+                                || b[1].ObjCellId != a[1].ObjCellId
+                                || !ApproximatelyEqualEpsilon(b[1].OriginX, a[1].OriginX, float.Epsilon) //b[1].OriginX != a[1].OriginX
+                                || !ApproximatelyEqualEpsilon(b[1].OriginY, a[1].OriginY, float.Epsilon) //b[1].OriginY != a[1].OriginY
+                                || !ApproximatelyEqualEpsilon(b[1].OriginZ, a[1].OriginZ, float.Epsilon) //b[1].OriginZ != a[1].OriginZ
+                            )
                             {
                                 deDuped.Add(q);
                             }
@@ -1150,7 +1911,18 @@ namespace PhatACCacheBinParser
             }
 
             if (deDuped.Count > 0)
-                HouseSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\5 HousingPortals\\SQL\\", true);
+                //HouseSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\5 HousingPortals\\SQL\\", true);
+                HouseSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\5 HousingPortals\\", true);
+
+            var cacheIds = cacheHousePortals.Select(x => x.HouseId).ToHashSet();
+            var spellIds = results.Select(x => x.HouseId).ToHashSet();
+            var deDupeIds = deDuped.Select(x => x.HouseId).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} Housing portals exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged housing portals." + Environment.NewLine;
 
             cmdACE5HousingParse.Enabled = true;
         }
@@ -1159,9 +1931,18 @@ namespace PhatACCacheBinParser
         {
             cmdACE6LandblocksParse.Enabled = false;
 
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Landblocks from database... ";
+
+            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
             var cachelandblockInstances = Globals.CacheBin.LandBlockData.ConvertToACE();
 
-            var landblocks = Globals.ACEDatabase.GetAllLandblockInstances();
+            //var landblocks = Globals.ACEDatabase.GetAllLandblockInstances();
+            Globals.ACEDatabase.WorldDbContext.LandblockInstance.Load();
+            Globals.ACEDatabase.WorldDbContext.LandblockInstanceLink.Load();
+            var landblocks = Globals.ACEDatabase.WorldDbContext.LandblockInstance.ToList();
 
             //uint landblockToCloneFrom = 0x01C9;
             //uint landblockToCloneTo = 0x003C;
@@ -1221,7 +2002,19 @@ namespace PhatACCacheBinParser
                             deDuped.Add(q);
                             deDupedIndex.Add(lbid);
                         }
-                        else if (c.AnglesW != d.AnglesW || c.AnglesX != d.AnglesX || c.AnglesY != d.AnglesY || c.IsLinkChild != d.IsLinkChild || c.ObjCellId != d.ObjCellId || c.OriginX != d.OriginX || c.OriginY != d.OriginY || c.OriginZ != d.OriginZ || c.WeenieClassId != d.WeenieClassId)
+                        //else if (c.AnglesW != d.AnglesW || c.AnglesX != d.AnglesX || c.AnglesY != d.AnglesY || c.IsLinkChild != d.IsLinkChild || c.ObjCellId != d.ObjCellId || c.OriginX != d.OriginX || c.OriginY != d.OriginY || c.OriginZ != d.OriginZ || c.WeenieClassId != d.WeenieClassId)
+                        else if (
+                               !ApproximatelyEqualEpsilon(c.AnglesW, d.AnglesW, float.Epsilon) //c.AnglesW != d.AnglesW
+                            || !ApproximatelyEqualEpsilon(c.AnglesX, d.AnglesX, float.Epsilon) //c.AnglesX != d.AnglesX
+                            || !ApproximatelyEqualEpsilon(c.AnglesY, d.AnglesY, float.Epsilon) //c.AnglesY != d.AnglesY
+                            || !ApproximatelyEqualEpsilon(c.AnglesZ, d.AnglesZ, float.Epsilon) //c.AnglesZ != d.AnglesZ
+                            || c.IsLinkChild != d.IsLinkChild
+                            || c.ObjCellId != d.ObjCellId
+                            || !ApproximatelyEqualEpsilon(c.OriginX, d.OriginX, float.Epsilon) //c.OriginX != d.OriginX
+                            || !ApproximatelyEqualEpsilon(c.OriginY, d.OriginY, float.Epsilon) //c.OriginY != d.OriginY
+                            || !ApproximatelyEqualEpsilon(c.OriginZ, d.OriginZ, float.Epsilon) //c.OriginZ != d.OriginZ
+                            || c.WeenieClassId != d.WeenieClassId
+                            )
                         {
                             deDuped.Add(q);
                             deDupedIndex.Add(lbid);
@@ -1242,7 +2035,42 @@ namespace PhatACCacheBinParser
                     deDuped.Add(q);
             }
 
-            LandblockSQLWriter.WriteFiles(landblocks, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
+            foreach (var thing in deDuped)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
+            LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\", Globals.WeenieNames, true);
+
+            var cacheLbs = cachelandblockInstances.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
+            var encounterLbs = landblocks.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
+            var deDupeLbs = deDuped.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
+
+            var deletedLbs = cacheLbs.Except(encounterLbs).Except(deDupeLbs).ToHashSet();
+
+            if (deletedLbs.Count > 0)
+            {
+                var sqlWriter = new ACE.Database.SQLFormatters.World.LandblockInstanceWriter();
+
+                sqlWriter.WeenieNames = Globals.WeenieNames;
+
+                foreach (var lb in deletedLbs)
+                {
+                    var thing = new List<ACE.Database.Models.World.LandblockInstance> { new ACE.Database.Models.World.LandblockInstance { ObjCellId = lb << 16 } };
+
+                    string fileName = sqlWriter.GetDefaultFileName(thing[0]);
+
+                    using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\" + fileName.Replace(".sql", " - DELETED.sql")))
+                    {
+                        sqlWriter.CreateSQLDELETEStatement(thing, writer);
+                        //writer.WriteLine();
+                    }
+                }
+            }
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupeLbs.Count:N0} landblocks exported." + Environment.NewLine;
+
+            //txtACEDatabaseConnector.Text += $"Skipped {cachelandblockInstances.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count - deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} unchanged landblocks." + Environment.NewLine;
+            txtACEDatabaseConnector.Text += $"Skipped {cacheLbs.Except(deDupeLbs).Except(deletedLbs).Count():N0} unchanged landblocks." + Environment.NewLine;
 
             cmdACE6LandblocksParse.Enabled = true;
         }
@@ -1250,6 +2078,8 @@ namespace PhatACCacheBinParser
         private void cmdACE8QuestsParse_Click(object sender, EventArgs e)
         {
             cmdACE8QuestsParse.Enabled = false;
+
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting quests from database... ";
 
             var cacheQuests = Globals.CacheBin.QuestDefDB.ConvertToACE();
 
@@ -1279,7 +2109,21 @@ namespace PhatACCacheBinParser
                     deDuped.Add(q);
             }
 
-            QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\SQL\\", true);
+            foreach (var thing in deDuped)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\SQL\\", true);
+            QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\", true);
+
+            var cacheIds = cacheQuests.Select(x => x.Name.ToUpper()).ToHashSet();
+            var spellIds = results.Select(x => x.Name.ToUpper()).ToHashSet();
+            var deDupeIds = deDuped.Select(x => x.Name.ToUpper()).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} quests exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged quests." + Environment.NewLine;
 
             cmdACE8QuestsParse.Enabled = true;
         }
@@ -1288,7 +2132,17 @@ namespace PhatACCacheBinParser
         {
             cmdACE9WeeniesParse.Enabled = false;
 
+            cmdACEDatabaseCacheAllWeenies_Click(sender, e);
+
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Weenies from database... ";
+
+            var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
             Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
+            //var results = Globals.ACEDatabase.WorldDatabase.GetAllWeenies();
+                    //.AsNoTracking()
+                    //.ToList();
 
             var aceTreasureWielded = Globals.ACEDatabase.GetAllTreasureWielded();
             var aceTreasureDeath = Globals.ACEDatabase.GetAllTreasureDeath();
@@ -1308,19 +2162,771 @@ namespace PhatACCacheBinParser
                     treasureDeath.Add(item.TreasureType, item);
             }
 
-            WeenieSQLWriter.WriteFiles(Globals.ACEDatabase.Weenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, Globals.ACEDatabase.Weenies.ToDictionary(x => x.ClassId, x => x), true);
+            var deDupedWeenies = new List<ACE.Database.Models.World.Weenie>();
+
+            foreach (var weenie in Globals.ACEDatabase.Weenies)
+            {
+                if (weenie.ClassId == 66)
+                    Console.WriteLine();
+
+                var cW = cacheWeenies.FirstOrDefault(i => i.ClassId == weenie.ClassId);
+
+                if (cW == null)
+                {
+                    deDupedWeenies.Add(weenie);
+                    continue;
+                }
+
+                var deDupe = false;
+            deDupe:
+                if (deDupe)
+                {
+                    deDupedWeenies.Add(weenie);
+                    continue;
+                }
+
+                if (weenie.WeeniePropertiesAttribute.Count != cW.WeeniePropertiesAttribute.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesAttribute)
+                {
+                    var cWprop = cW.WeeniePropertiesAttribute.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (
+                           prop.CPSpent != cWprop.CPSpent
+                        || prop.InitLevel != cWprop.InitLevel
+                        || prop.LevelFromCP != cWprop.LevelFromCP
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesAttribute2nd.Count != cW.WeeniePropertiesAttribute2nd.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesAttribute2nd)
+                {
+                    var cWprop = cW.WeeniePropertiesAttribute2nd.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (
+                           prop.CPSpent != cWprop.CPSpent
+                        || prop.InitLevel != cWprop.InitLevel
+                        || prop.LevelFromCP != cWprop.LevelFromCP
+                        || prop.CurrentLevel != cWprop.CurrentLevel
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesBodyPart.Count != cW.WeeniePropertiesBodyPart.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesBodyPart)
+                {
+                    var cWprop = cW.WeeniePropertiesBodyPart.FirstOrDefault(i => i.Key == prop.Key);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (
+                           prop.ArmorVsAcid != cWprop.ArmorVsAcid
+                        || prop.ArmorVsBludgeon != cWprop.ArmorVsBludgeon
+                        || prop.ArmorVsCold != cWprop.ArmorVsCold
+                        || prop.ArmorVsElectric != cWprop.ArmorVsElectric
+                        || prop.ArmorVsFire != cWprop.ArmorVsFire
+                        || prop.ArmorVsNether != cWprop.ArmorVsNether
+                        || prop.ArmorVsPierce != cWprop.ArmorVsPierce
+                        || prop.ArmorVsSlash != cWprop.ArmorVsSlash
+                        || prop.BaseArmor != cWprop.BaseArmor
+                        || prop.BH != cWprop.BH
+                        || prop.DType != cWprop.DType
+                        || prop.DVal != cWprop.DVal
+                        || prop.DVar != cWprop.DVar
+                        || prop.HLB != cWprop.HLB
+                        || prop.HLF != cWprop.HLF
+                        || prop.HRB != cWprop.HRB
+                        || prop.HRF != cWprop.HRF
+                        || prop.LLB != cWprop.LLB
+                        || prop.LLF != cWprop.LLF
+                        || prop.LRB != cWprop.LRB
+                        || prop.LRF != cWprop.LRF
+                        || prop.MLB != cWprop.MLB
+                        || prop.MLF != cWprop.MLF
+                        || prop.MRB != cWprop.MRB
+                        || prop.MRF != cWprop.MRF
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesBook != null && cW.WeeniePropertiesBook == null
+                    || weenie.WeeniePropertiesBook?.MaxNumCharsPerPage != cW.WeeniePropertiesBook?.MaxNumCharsPerPage
+                    || weenie.WeeniePropertiesBook?.MaxNumPages != cW.WeeniePropertiesBook?.MaxNumPages)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                if (weenie.WeeniePropertiesBookPageData.Count != cW.WeeniePropertiesBookPageData.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesBookPageData)
+                {
+                    var cWprop = cW.WeeniePropertiesBookPageData.FirstOrDefault(i => i.PageId == prop.PageId);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (
+                           prop.AuthorAccount != cWprop.AuthorAccount
+                        || prop.AuthorId != cWprop.AuthorId
+                        || prop.AuthorName != cWprop.AuthorName
+                        || prop.IgnoreAuthor != cWprop.IgnoreAuthor
+                        || prop.PageText != cWprop.PageText
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesBool.Count != cW.WeeniePropertiesBool.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesBool)
+                {
+                    var cWprop = cW.WeeniePropertiesBool.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Value != cWprop.Value)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesCreateList.Count != cW.WeeniePropertiesCreateList.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                //foreach (var prop in weenie.WeeniePropertiesCreateList.OrderBy(x => x.DestinationType))
+                //{
+                //    var cWprop = cW.WeeniePropertiesBool.FirstOrDefault(i => i.Type == prop.Type);
+
+                //    if (cWprop == null)
+                //    {
+                //        deDupe = true;
+                //        goto deDupe;
+                //    }
+
+                //    if (prop.Value != cWprop.Value)
+                //    {
+                //        deDupe = true;
+                //        goto deDupe;
+                //    }
+                //}
+
+                for (var i = 0; i < weenie.WeeniePropertiesCreateList.Count; i++)
+                {
+                    var cWprop = cW.WeeniePropertiesCreateList.OrderBy(x => x.DestinationType).ElementAt(i);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var prop = weenie.WeeniePropertiesCreateList.OrderBy(x => x.DestinationType).ElementAt(i);
+
+                    if (
+                           prop.DestinationType != cWprop.DestinationType
+                        || prop.Palette != cWprop.Palette
+                        || !ApproximatelyEqualEpsilon(prop.Shade, cWprop.Shade, float.Epsilon)
+                        || prop.StackSize != cWprop.StackSize
+                        || prop.TryToBond != cWprop.TryToBond
+                        || prop.WeenieClassId != cWprop.WeenieClassId
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesDID.Count != cW.WeeniePropertiesDID.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesDID)
+                {
+                    var cWprop = cW.WeeniePropertiesDID.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Value != cWprop.Value)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesEmote.Count != cW.WeeniePropertiesEmote.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                //foreach (var prop in weenie.WeeniePropertiesEmote)
+                //{
+                //    var cWprop = cW.WeeniePropertiesDID.FirstOrDefault(i => i.Type == prop.Type);
+
+                //    if (cWprop == null)
+                //    {
+                //        deDupe = true;
+                //        goto deDupe;
+                //    }
+
+                //    if (prop.Value != cWprop.Value)
+                //    {
+                //        deDupe = true;
+                //        goto deDupe;
+                //    }
+                //}
+
+                for (var i = 0; i < weenie.WeeniePropertiesEmote.Count; i++)
+                {
+                    var cWprop = cW.WeeniePropertiesEmote.OrderBy(x => x.Category).ElementAt(i);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var prop = weenie.WeeniePropertiesEmote.OrderBy(x => x.Category).ElementAt(i);
+
+                    if (
+                           prop.Category != cWprop.Category
+                        || !ApproximatelyEqualEpsilon(prop.MaxHealth, cWprop.MaxHealth, float.Epsilon) //prop.MaxHealth != cWprop.MaxHealth
+                        || !ApproximatelyEqualEpsilon(prop.MinHealth, cWprop.MinHealth, float.Epsilon) //prop.MinHealth != cWprop.MinHealth
+                        || !ApproximatelyEqualEpsilon(prop.Probability, cWprop.Probability, float.Epsilon)
+                        || prop.Quest != cWprop.Quest
+                        || prop.Style != cWprop.Style
+                        || prop.Substyle != cWprop.Substyle
+                        || prop.VendorType != cWprop.VendorType
+                        || prop.WeenieClassId != cWprop.WeenieClassId
+                        || prop.WeeniePropertiesEmoteAction.Count != cWprop.WeeniePropertiesEmoteAction.Count
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    for (var y = 0; y < prop.WeeniePropertiesEmoteAction.Count; y++)
+                    {
+                        var cWaction = cWprop.WeeniePropertiesEmoteAction.OrderBy(x => x.Order).ElementAt(y);
+
+                        if (cWaction == null)
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+
+                        var action = prop.WeeniePropertiesEmoteAction.OrderBy(x => x.Order).ElementAt(y);
+
+                        if (
+                              action.Amount != cWaction.Amount
+                           || action.Amount64 != cWaction.Amount64
+                           || !ApproximatelyEqualEpsilon(action.AnglesW, cWaction.AnglesW, float.Epsilon)
+                           || !ApproximatelyEqualEpsilon(action.AnglesX, cWaction.AnglesX, float.Epsilon)
+                           || !ApproximatelyEqualEpsilon(action.AnglesY, cWaction.AnglesY, float.Epsilon)
+                           || !ApproximatelyEqualEpsilon(action.AnglesZ, cWaction.AnglesZ, float.Epsilon)
+                           || !ApproximatelyEqualEpsilon(action.Delay, cWaction.Delay, float.Epsilon)
+                           || action.DestinationType != cWaction.DestinationType
+                           || action.Display != cWaction.Display
+                           || !ApproximatelyEqualEpsilon(action.Extent, cWaction.Extent, float.Epsilon)
+                           || action.HeroXP64 != cWaction.HeroXP64
+                           || action.Max != cWaction.Max
+                           || action.Max64 != cWaction.Max64
+                           || action.MaxDbl != cWaction.MaxDbl
+                           || action.Message != cWaction.Message
+                           || action.Min != cWaction.Min
+                           || action.Min64 != cWaction.Min64
+                           || action.MinDbl != cWaction.MinDbl
+                           || action.Motion != cWaction.Motion
+                           || action.ObjCellId != cWaction.ObjCellId
+                           || action.Order != cWaction.Order
+                           || !ApproximatelyEqualEpsilon(action.OriginX, cWaction.OriginX, float.Epsilon)
+                           || !ApproximatelyEqualEpsilon(action.OriginY, cWaction.OriginY, float.Epsilon)
+                           || !ApproximatelyEqualEpsilon(action.OriginZ, cWaction.OriginZ, float.Epsilon)
+                           || action.Palette != cWaction.Palette
+                           || action.Percent != cWaction.Percent
+                           || action.PScript != cWaction.PScript
+                           || !ApproximatelyEqualEpsilon(action.Shade, cWaction.Shade, float.Epsilon)
+                           || action.SpellId != cWaction.SpellId
+                           || action.StackSize != cWaction.StackSize
+                           || action.Stat != cWaction.Stat
+                           || action.TestString != cWaction.TestString
+                           || action.TreasureClass != cWaction.TreasureClass
+                           || action.TreasureType != cWaction.TreasureType
+                           || action.TryToBond != cWaction.TryToBond
+                           || action.Type != cWaction.Type
+                           || action.WealthRating != cWaction.WealthRating
+                           || action.WeenieClassId != cWaction.WeenieClassId
+                           )
+                        {
+                            deDupe = true;
+                            goto deDupe;
+                        }
+                    }
+                }
+
+                if (weenie.WeeniePropertiesEventFilter.Count != cW.WeeniePropertiesEventFilter.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesEventFilter)
+                {
+                    var cWprop = cW.WeeniePropertiesEventFilter.FirstOrDefault(i => i.Event == prop.Event);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    //if (prop.Event != cWprop.Event)
+                    //{
+                    //    deDupe = true;
+                    //    goto deDupe;
+                    //}
+                }
+
+                if (weenie.WeeniePropertiesFloat.Count != cW.WeeniePropertiesFloat.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesFloat)
+                {
+                    var cWprop = cW.WeeniePropertiesFloat.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (!ApproximatelyEqualEpsilon((float)prop.Value, (float)cWprop.Value, float.Epsilon, 3))
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesGenerator.Count != cW.WeeniePropertiesGenerator.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                //foreach (var prop in weenie.WeeniePropertiesGenerator)
+                //{
+                //    //var cWprop = cW.WeeniePropertiesDID.FirstOrDefault(i => i.Type == prop.Type);
+
+                //    //if (cWprop == null)
+                //    //{
+                //    //    deDupe = true;
+                //    //    goto deDupe;
+                //    //}
+
+                //    //if (prop.Value != cWprop.Value)
+                //    //{
+                //    //    deDupe = true;
+                //    //    goto deDupe;
+                //    //}
+
+
+                //}
+
+                for (var i = 0; i < weenie.WeeniePropertiesGenerator.Count; i++)
+                {
+                    var cWprop = cW.WeeniePropertiesGenerator.ElementAt(i);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    var prop = weenie.WeeniePropertiesGenerator.ElementAt(i);
+
+                    if (
+                           !ApproximatelyEqualEpsilon(prop.AnglesW, cWprop.AnglesW, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.AnglesX, cWprop.AnglesX, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.AnglesY, cWprop.AnglesY, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.AnglesZ, cWprop.AnglesZ, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.Delay, cWprop.Delay, float.Epsilon)
+                        || prop.InitCreate != cWprop.InitCreate
+                        || prop.MaxCreate != cWprop.MaxCreate
+                        || prop.ObjCellId != cWprop.ObjCellId
+                        || !ApproximatelyEqualEpsilon(prop.OriginX, cWprop.OriginX, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.OriginY, cWprop.OriginY, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.OriginZ, cWprop.OriginZ, float.Epsilon)
+                        || prop.PaletteId != cWprop.PaletteId
+                        || !ApproximatelyEqualEpsilon(prop.Probability, cWprop.Probability, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.Shade, cWprop.Shade, float.Epsilon)
+                        || prop.StackSize != cWprop.StackSize
+                        || prop.WeenieClassId != cWprop.WeenieClassId
+                        || prop.WhenCreate != cWprop.WhenCreate
+                        || prop.WhereCreate != cWprop.WhereCreate
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesIID.Count != cW.WeeniePropertiesIID.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesIID)
+                {
+                    var cWprop = cW.WeeniePropertiesIID.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Value != cWprop.Value)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesInt.Count != cW.WeeniePropertiesInt.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesInt)
+                {
+                    var cWprop = cW.WeeniePropertiesInt.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Value != cWprop.Value)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesInt64.Count != cW.WeeniePropertiesInt64.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesInt64)
+                {
+                    var cWprop = cW.WeeniePropertiesInt64.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Value != cWprop.Value)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesPosition.Count != cW.WeeniePropertiesPosition.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesPosition)
+                {
+                    var cWprop = cW.WeeniePropertiesPosition.FirstOrDefault(i => i.PositionType == prop.PositionType);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (
+                        prop.ObjCellId != cWprop.ObjCellId
+                        || !ApproximatelyEqualEpsilon(prop.AnglesW, cWprop.AnglesW, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.AnglesX, cWprop.AnglesX, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.AnglesY, cWprop.AnglesY, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.AnglesZ, cWprop.AnglesZ, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.OriginX, cWprop.OriginX, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.OriginY, cWprop.OriginY, float.Epsilon)
+                        || !ApproximatelyEqualEpsilon(prop.OriginZ, cWprop.OriginZ, float.Epsilon)
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesSkill.Count != cW.WeeniePropertiesSkill.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesSkill)
+                {
+                    var cWprop = cW.WeeniePropertiesSkill.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (
+                           prop.InitLevel != cWprop.InitLevel
+                        || prop.LastUsedTime != cWprop.LastUsedTime
+                        || prop.LevelFromPP != cWprop.LevelFromPP
+                        || prop.PP != cWprop.PP
+                        || prop.ResistanceAtLastCheck != cWprop.ResistanceAtLastCheck
+                        || prop.SAC != cWprop.SAC
+                        )
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesSpellBook.Count != cW.WeeniePropertiesSpellBook.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesSpellBook)
+                {
+                    var cWprop = cW.WeeniePropertiesSpellBook.FirstOrDefault(i => i.Spell == prop.Spell);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Probability != cWprop.Probability)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+
+                if (weenie.WeeniePropertiesString.Count != cW.WeeniePropertiesString.Count)
+                {
+                    deDupe = true;
+                    goto deDupe;
+                }
+
+                foreach (var prop in weenie.WeeniePropertiesString)
+                {
+                    var cWprop = cW.WeeniePropertiesString.FirstOrDefault(i => i.Type == prop.Type);
+
+                    if (cWprop == null)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+
+                    if (prop.Value != cWprop.Value)
+                    {
+                        deDupe = true;
+                        goto deDupe;
+                    }
+                }
+            }
+
+            foreach (var thing in deDupedWeenies)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //WeenieSQLWriter.WriteFiles(Globals.ACEDatabase.Weenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, Globals.ACEDatabase.Weenies.ToDictionary(x => x.ClassId, x => x), true);
+            //WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
+            WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
+
+            var cacheIds = cacheWeenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
+            var spellIds = Globals.ACEDatabase.Weenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
+            var deDupeIds = deDupedWeenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedWeenies.Count:N0} weenies exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged weenies." + Environment.NewLine;
+
+            var sqlWriter = new ACE.Database.SQLFormatters.World.WeenieSQLWriter();
+
+            //sqlWriter.WeenieNames = weenieNames;
+            //sqlWriter.SpellNames = SpellNames.Values;
+            //sqlWriter.PacketOpCodes = PacketOpCodeNames.Values;
+
+            //sqlWriter.TreasureWielded = wieldedTreasure;
+            //sqlWriter.TreasureDeath = deathTreasure;
+
+            //sqlWriter.Weenies = weenies;
+
+            //string fileName = sqlWriter.GetDefaultFileName(input);
+
+            //var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\";
+            var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\";
+            var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+            foreach (var weenie in deDupedWeenies)
+            {
+                string weenieFileName = sqlWriter.GetDefaultFileName(weenie);
+                var weenieSubFolder = sqlWriter.GetDefaultSubfolder(weenie);
+
+                var fileInfo = new FileInfo(weenieRoot + weenieSubFolder + weenieFileName);
+                //var fileName = fileInfo.Name;
+                //var fileDirectory = weenieRoot + weenieFileName[0..^(fileName.Length + 1)];
+
+                //Console.WriteLine(weenieFileName);
+                var x = Directory.EnumerateFiles(esRoot, weenieFileName[0..5] + "*.es", SearchOption.AllDirectories);
+                //if (x.Count() > 0)
+                //    Console.WriteLine(weenieFileName);
+                var y = x?.LastOrDefault();
+
+                if (y != null)
+                {
+                    var esFile = new FileInfo(y);
+                    //File.Move(y, weenieRoot + weenieSubFolder + esFile.Name, true);
+                    File.Move(y, weenieRoot + weenieSubFolder + weenieFileName[0..5] + ".es", true);
+                }
+            }
+
+            //foreach (var directory in Directory.GetDirectories(esRoot))
+            //{
+            //    if (!Directory.EnumerateFileSystemEntries(directory).Any())
+            //        Directory.Delete(directory, false);
+            //}
+            DeleteEmptySubdirectories(esRoot);
 
             cmdACE9WeeniesParse.Enabled = true;
         }
 
+        public static void DeleteEmptySubdirectories(string parentDirectory)
+        {
+            System.Threading.Tasks.Parallel.ForEach(System.IO.Directory.GetDirectories(parentDirectory), directory => {
+                DeleteEmptySubdirectories(directory);
+                if (!System.IO.Directory.EnumerateFileSystemEntries(directory).Any()) System.IO.Directory.Delete(directory, false);
+            });
+        }
+
         private void cmdACEAMutationParse_Click(object sender, EventArgs e)
         {
+            cmdACEAMutationParse.Enabled = false;
 
+            //var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
+            var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
+            foreach(var file in esFiles)
+            {
+                var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
+                //var x = file.Remove(rootToRemove.Length);
+                var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
+                //Console.WriteLine(x);
+                var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                var fileInfo = new FileInfo(currentFileNameAndPath);
+                var fileName = fileInfo.Name;
+                var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileName.Length + 1)];
+
+                Directory.CreateDirectory(fileDirectory);
+
+                var outputFile = fileDirectory + "\\" + fileName;
+
+                File.Copy(file, outputFile);
+            }
+
+            
+
+            cmdACEAMutationParse.Enabled = true;
         }
 
         private void cmdACEBEventsParse_Click(object sender, EventArgs e)
         {
             cmdACEBEventsParse.Enabled = false;
+
+            txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting events from database... ";
 
             var cacheEvents = Globals.CacheBin.GameEventDefDB.ConvertToACE();
 
@@ -1350,7 +2956,21 @@ namespace PhatACCacheBinParser
                     deDuped.Add(q);
             }
 
-            EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\SQL\\", true);
+            foreach (var thing in deDuped)
+                thing.LastModified = new DateTime(2021, 11, 1);
+
+            //EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\SQL\\", true);
+            EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\", true);
+
+            var cacheIds = cacheEvents.Select(x => x.Name.ToUpper()).ToHashSet();
+            var spellIds = results.Select(x => x.Name.ToUpper()).ToHashSet();
+            var deDupeIds = deDuped.Select(x => x.Name.ToUpper()).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} events exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged events." + Environment.NewLine;
 
             cmdACEBEventsParse.Enabled = true;
         }
