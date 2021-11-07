@@ -1,13 +1,18 @@
+extern alias MySqlConnectorAlias;
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
 
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using PhatACCacheBinParser.ACE_Helpers;
 using PhatACCacheBinParser.Properties;
 using PhatACCacheBinParser.Seg1_RegionDescExtendedData;
@@ -794,128 +799,35 @@ namespace PhatACCacheBinParser
             txtACEWorldPassword.UseSystemPasswordChar = chkHidePassword.Checked;
         }
 
+        private bool writeDeletedFiles = false;
+
         private void cmdACE1RegionsParse_Click(object sender, EventArgs e)
         {
             cmdACE1RegionsParse.Enabled = false;
 
             txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting regions from database... ";
 
-            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
-
-            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
-
             var cacheRegion = Globals.CacheBin.RegionDescExtendedData.ConvertToACE(Globals.CacheBin.LandBlockData);
-
-            //var results = Globals.ACEDatabase.WorldDbContext.Encounter
-            //        .AsNoTracking()
-            //        .ToList();
 
             Globals.ACEDatabase.WorldDbContext.Encounter.Load();
             var results = Globals.ACEDatabase.WorldDbContext.Encounter.ToList();
 
-            var x = new Dictionary<int, List<ACE.Database.Models.World.Encounter>>();
+            DeDupeRegions(cacheRegion, results, out var deDupedEncounters);
 
-            foreach (var r in cacheRegion)
-            {
-                if (!x.TryAdd(r.Landblock, new List<ACE.Database.Models.World.Encounter> { r }))
-                    x[r.Landblock].Add(r);
-            }
+            //foreach (var thing in deDupedEncounters)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
 
-            var y = new Dictionary<int, List<ACE.Database.Models.World.Encounter>>();
-
-            foreach (var r in results)
-            {
-                if (!y.TryAdd(r.Landblock, new List<ACE.Database.Models.World.Encounter> { r }))
-                    y[r.Landblock].Add(r);
-            }
-
-            var deDuped = new List<ACE.Database.Models.World.Encounter>();
-
-            var deDupedIndex = new HashSet<int>();
-
-            foreach (var q in results)
-            {
-                //q.LastModified = DateTime.Now;
-
-                if (!x.ContainsKey(q.Landblock))
-                {
-                    deDuped.Add(q);
-                    deDupedIndex.Add(q.Landblock);
-                }
-                else
-                {
-                    var a = x[q.Landblock];
-                    var b = y[q.Landblock];
-
-                    if (deDupedIndex.Contains(q.Landblock))
-                        deDuped.Add(q);
-                    else if (a.Count != b.Count)
-                    {
-                        deDuped.Add(q);
-                        deDupedIndex.Add(q.Landblock);
-                    }
-                    else
-                    {
-                        //if (b[0].AnglesW != a[0].AnglesW || b[0].AnglesX != a[0].AnglesX || b[0].AnglesY != a[0].AnglesY || b[0].AnglesZ != a[0].AnglesZ || b[0].ObjCellId != a[0].ObjCellId
-                        //    || b[0].OriginX != a[0].OriginX || b[0].OriginY != a[0].OriginY || b[0].OriginZ != a[0].OriginZ)
-                        //{
-                        //    deDuped.Add(q);
-                        //}
-                        //else if (b.Count == a.Count && b.Count == 2)
-                        //{
-                        //    if (b[1].AnglesW != a[1].AnglesW || b[1].AnglesX != a[1].AnglesX || b[1].AnglesY != a[1].AnglesY || b[1].AnglesZ != a[1].AnglesZ || b[1].ObjCellId != a[1].ObjCellId
-                        //    || b[1].OriginX != a[1].OriginX || b[1].OriginY != a[1].OriginY || b[1].OriginZ != a[1].OriginZ)
-                        //    {
-                        //        deDuped.Add(q);
-                        //    }
-                        //}
-                        var c = a.ToDictionary(e => (e.CellX, e.CellY), e => e.WeenieClassId);
-                        var d = b.ToDictionary(e => (e.CellX, e.CellY), e => e.WeenieClassId);
-
-                        var key = (q.CellX, q.CellY);
-
-                        //if (!c.ContainsKey(key))
-                        //    deDuped.Add(q);
-                        //else if (c[key] != q.WeenieClassId)
-                        //    deDuped.Add(q);
-                        //else if (d.ContainsKey(key))
-                        //    deDuped.Add(q);
-                        //if (deDupedIndex.Contains(q.Landblock))
-                        //    deDuped.Add(q);
-                        //else if (!c.ContainsKey(key) || c[key] != q.WeenieClassId)
-                        if (!c.ContainsKey(key) || c[key] != q.WeenieClassId)
-                        {
-                            deDuped.Add(q);
-                            deDupedIndex.Add(q.Landblock);
-                        }
-                    }
-                }
-            }
-
-            deDuped.Clear();
-
-            foreach (var q in results)
-            {
-                //q.LastModified = DateTime.Now;
-
-                if (deDupedIndex.Contains(q.Landblock))
-                    deDuped.Add(q);
-            }
-
-            foreach (var thing in deDuped)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            if (deDuped.Count > 0)
+            if (deDupedEncounters.Count > 0)
                 //RegionDescSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\SQL\\", Globals.WeenieNames, true);
-                RegionDescSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\", Globals.WeenieNames, true);
+                RegionDescSQLWriter.WriteFiles(deDupedEncounters, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\", Globals.WeenieNames, true);
 
             var cacheLbs = cacheRegion.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
             var encounterLbs = results.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
-            var deDupeLbs = deDuped.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
+            var deDupeLbs = deDupedEncounters.GroupBy(x => x.Landblock).Select(x => x.First().Landblock).ToHashSet();
 
             var deletedLbs = cacheLbs.Except(encounterLbs).Except(deDupeLbs).ToHashSet();
 
-            if (deletedLbs.Count > 0)
+            if (writeDeletedFiles && deletedLbs.Count > 0)
             {
                 var sqlWriter = new ACE.Database.SQLFormatters.World.EncounterSQLWriter();
 
@@ -953,7 +865,27 @@ namespace PhatACCacheBinParser
                 }
             }
 
-            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} encounters for a combined total of {deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} regions exported." + Environment.NewLine;
+            if (usePrevVersion)
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.Encounter.Load();
+                var prevEncounters = prevContext.Encounter.ToList();
+
+                DeDupeRegions(prevEncounters, deDupedEncounters, out deDupedEncounters);
+
+                foreach (var thing in deDupedEncounters)
+                    thing.LastModified = GetTimestampForExport();
+            }
+
+            if (deDupedEncounters.Count > 0)
+                //RegionDescSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\SQL\\", Globals.WeenieNames, true);
+                RegionDescSQLWriter.WriteFiles(deDupedEncounters, Settings.Default["GDLESQLOutputFolder"] + "\\1 RegionDescExtendedData\\", Globals.WeenieNames, true);
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedEncounters.Count:N0} encounters for a combined total of {deDupedEncounters.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} regions exported." + Environment.NewLine;
 
             //txtACEDatabaseConnector.Text += $"Skipped {cacheRegion.Count - deDuped.Count:N0} encounters for a combined total of {cacheRegion.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count - deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} unchanged regions." + Environment.NewLine;
 
@@ -963,131 +895,268 @@ namespace PhatACCacheBinParser
             cmdACE1RegionsParse.Enabled = true;
         }
 
+        private DateTime? timestamp = null;
+        private DateTime GetTimestampForExport()
+        {
+            if (timestamp != null)
+                return timestamp.Value;
+            else
+            {
+                timestamp = DateTime.UtcNow;
+
+                return timestamp.Value;
+            }
+        }
+
+        private bool usePrevVersion = false;
+
+        private void DeDupeRegions(List<ACE.Database.Models.World.Encounter> cacheEncounters, List<ACE.Database.Models.World.Encounter> encounters, out List<ACE.Database.Models.World.Encounter> deDupedEncounters)
+        {
+            ////var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            ////Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
+            //var cacheRegion = Globals.CacheBin.RegionDescExtendedData.ConvertToACE(Globals.CacheBin.LandBlockData);
+
+            ////var results = Globals.ACEDatabase.WorldDbContext.Encounter
+            ////        .AsNoTracking()
+            ////        .ToList();
+
+            //Globals.ACEDatabase.WorldDbContext.Encounter.Load();
+            //var results = Globals.ACEDatabase.WorldDbContext.Encounter.ToList();
+
+            var x = new Dictionary<int, List<ACE.Database.Models.World.Encounter>>();
+
+            foreach (var r in cacheEncounters)
+            {
+                if (!x.TryAdd(r.Landblock, new List<ACE.Database.Models.World.Encounter> { r }))
+                    x[r.Landblock].Add(r);
+            }
+
+            var y = new Dictionary<int, List<ACE.Database.Models.World.Encounter>>();
+
+            foreach (var r in encounters)
+            {
+                if (!y.TryAdd(r.Landblock, new List<ACE.Database.Models.World.Encounter> { r }))
+                    y[r.Landblock].Add(r);
+            }
+
+            deDupedEncounters = new List<ACE.Database.Models.World.Encounter>();
+
+            var deDupedIndex = new HashSet<int>();
+
+            foreach (var q in encounters)
+            {
+                //q.LastModified = DateTime.Now;
+
+                if (!x.ContainsKey(q.Landblock))
+                {
+                    //deDuped.Add(q);
+                    deDupedIndex.Add(q.Landblock);
+                }
+                else
+                {
+                    if (deDupedIndex.Contains(q.Landblock))
+                        continue;
+
+                    var a = x[q.Landblock];
+                    var b = y[q.Landblock];
+
+                    //if (deDupedIndex.Contains(q.Landblock))
+                    //deDuped.Add(q);
+                    //else if (a.Count != b.Count)
+                    if (a.Count != b.Count)
+                    {
+                        //deDuped.Add(q);
+                        deDupedIndex.Add(q.Landblock);
+                    }
+                    else
+                    {
+                        //if (b[0].AnglesW != a[0].AnglesW || b[0].AnglesX != a[0].AnglesX || b[0].AnglesY != a[0].AnglesY || b[0].AnglesZ != a[0].AnglesZ || b[0].ObjCellId != a[0].ObjCellId
+                        //    || b[0].OriginX != a[0].OriginX || b[0].OriginY != a[0].OriginY || b[0].OriginZ != a[0].OriginZ)
+                        //{
+                        //    deDuped.Add(q);
+                        //}
+                        //else if (b.Count == a.Count && b.Count == 2)
+                        //{
+                        //    if (b[1].AnglesW != a[1].AnglesW || b[1].AnglesX != a[1].AnglesX || b[1].AnglesY != a[1].AnglesY || b[1].AnglesZ != a[1].AnglesZ || b[1].ObjCellId != a[1].ObjCellId
+                        //    || b[1].OriginX != a[1].OriginX || b[1].OriginY != a[1].OriginY || b[1].OriginZ != a[1].OriginZ)
+                        //    {
+                        //        deDuped.Add(q);
+                        //    }
+                        //}
+                        var c = a.ToDictionary(e => (e.CellX, e.CellY), e => e.WeenieClassId);
+                        var d = b.ToDictionary(e => (e.CellX, e.CellY), e => e.WeenieClassId);
+
+                        var key = (q.CellX, q.CellY);
+
+                        //if (!c.ContainsKey(key))
+                        //    deDuped.Add(q);
+                        //else if (c[key] != q.WeenieClassId)
+                        //    deDuped.Add(q);
+                        //else if (d.ContainsKey(key))
+                        //    deDuped.Add(q);
+                        //if (deDupedIndex.Contains(q.Landblock))
+                        //    deDuped.Add(q);
+                        //else if (!c.ContainsKey(key) || c[key] != q.WeenieClassId)
+                        if (!c.ContainsKey(key) || c[key] != q.WeenieClassId)
+                        {
+                            //deDuped.Add(q);
+                            deDupedIndex.Add(q.Landblock);
+                        }
+                    }
+                }
+            }
+
+            //deDuped.Clear();
+
+            foreach (var q in encounters)
+            {
+                //q.LastModified = DateTime.Now;
+
+                if (deDupedIndex.Contains(q.Landblock))
+                    deDupedEncounters.Add(q);
+            }
+        }
+
         private void cmdACE2SpellsParse_Click(object sender, EventArgs e)
         {
             cmdACE2SpellsParse.Enabled = false;
 
             txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting spells from database... ";
 
-            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
-
-            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
-
             var cacheSpells = Globals.CacheBin.SpellTableExtendedData.ConvertToACE();
-
-            //var results = Globals.ACEDatabase.WorldDbContext.Spell
-            //        .AsNoTracking()
-            //        .ToList();
 
             Globals.ACEDatabase.WorldDbContext.Spell.Load();
             var results = Globals.ACEDatabase.WorldDbContext.Spell.ToList();
 
-            var x = cacheSpells.ToDictionary(z => z.Id, z => z);
+            DeDupeSpells(cacheSpells, results, out var deDupedSpells);
 
-            var deDuped = new List<ACE.Database.Models.World.Spell>();
+            //foreach (var thing in deDupedSpells)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
 
-            foreach (var q in results)
+            if (deDupedSpells.Count > 0)
+                //SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
+                SpellsSQLWriter.WriteFiles(deDupedSpells, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\", Globals.WeenieNames, true);
+
+            if (usePrevVersion)
             {
-                //q.LastModified = DateTime.Now;
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
 
-                if (x.ContainsKey(q.Id))
-                {
-                    //if (q.Id == 3411)
-                    //    Console.WriteLine();
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.Spell.Load();
+                var prevSpells = prevContext.Spell.ToList();
 
-                    var s = x[q.Id];
+                DeDupeSpells(prevSpells, deDupedSpells, out deDupedSpells);
 
-                    if (q.Align != s.Align
-                        || q.BaseIntensity != s.BaseIntensity
-                        || q.Boost != s.Boost
-                        || q.BoostVariance != s.BoostVariance
-                        || !ApproximatelyEqualEpsilon(q.CreateOffsetOriginX, s.CreateOffsetOriginX, float.Epsilon) //q.CreateOffsetOriginX != s.CreateOffsetOriginX
-                        || !ApproximatelyEqualEpsilon(q.CreateOffsetOriginY, s.CreateOffsetOriginY, float.Epsilon) //q.CreateOffsetOriginY != s.CreateOffsetOriginY
-                        || !ApproximatelyEqualEpsilon(q.CreateOffsetOriginZ, s.CreateOffsetOriginZ, float.Epsilon) //q.CreateOffsetOriginZ != s.CreateOffsetOriginZ
-                        || q.CritFreq != s.CritFreq
-                        || q.CritMultiplier != s.CritMultiplier
-                        || !ApproximatelyEqualEpsilon(q.DamageRatio, s.DamageRatio, float.Epsilon) //q.DamageRatio != s.DamageRatio
-                        || q.DamageType != s.DamageType
-                        || !ApproximatelyEqualEpsilon(q.DefaultLaunchAngle, s.DefaultLaunchAngle, float.Epsilon) //q.DefaultLaunchAngle != s.DefaultLaunchAngle
-                        || q.Destination != s.Destination
-                        || !ApproximatelyEqualEpsilon(q.DimsOriginX, s.DimsOriginX, float.Epsilon) //q.DimsOriginX != s.DimsOriginX
-                        || !ApproximatelyEqualEpsilon(q.DimsOriginY, s.DimsOriginY, float.Epsilon) //q.DimsOriginY != s.DimsOriginY
-                        || !ApproximatelyEqualEpsilon(q.DimsOriginY, s.DimsOriginY, float.Epsilon) //q.DimsOriginY != s.DimsOriginZ
-                        || q.DispelSchool != s.DispelSchool
-                        || q.DotDuration != s.DotDuration
-                        || !ApproximatelyEqualEpsilon(q.DrainPercentage, s.DrainPercentage, float.Epsilon) //q.DrainPercentage != s.DrainPercentage
-                        || q.ElementalModifier != s.ElementalModifier
-                        || q.EType != s.EType
-                        || q.IgnoreMagicResist != s.IgnoreMagicResist
-                        || q.ImbuedEffect != s.ImbuedEffect
-                        || q.Index != s.Index
-                        || q.Link != s.Link
-                        || !ApproximatelyEqualEpsilon(q.LossPercent, s.LossPercent, float.Epsilon) //q.LossPercent != s.LossPercent
-                        || q.MaxBoostAllowed != s.MaxBoostAllowed
-                        || q.MaxPower != s.MaxPower
-                        || q.MinPower != s.MinPower
-                        || q.Name != s.Name
-                        || q.NonTracking != s.NonTracking
-                        || q.Number != s.Number
-                        || !ApproximatelyEqualEpsilon(q.NumberVariance, s.NumberVariance, float.Epsilon) //q.NumberVariance != s.NumberVariance
-                        || q.NumProjectiles != s.NumProjectiles
-                        || q.NumProjectilesVariance != s.NumProjectilesVariance
-                        || !ApproximatelyEqualEpsilon(q.PaddingOriginX, s.PaddingOriginX, float.Epsilon) //q.PaddingOriginX != s.PaddingOriginX
-                        || !ApproximatelyEqualEpsilon(q.PaddingOriginX, s.PaddingOriginX, float.Epsilon) //q.PaddingOriginX != s.PaddingOriginY
-                        || !ApproximatelyEqualEpsilon(q.PaddingOriginZ, s.PaddingOriginZ, float.Epsilon) //q.PaddingOriginZ != s.PaddingOriginZ
-                        || !ApproximatelyEqualEpsilon(q.PeturbationOriginX, s.PeturbationOriginX, float.Epsilon) //q.PeturbationOriginX != s.PeturbationOriginX
-                        || !ApproximatelyEqualEpsilon(q.PeturbationOriginY, s.PeturbationOriginY, float.Epsilon) //q.PeturbationOriginY != s.PeturbationOriginY
-                        || !ApproximatelyEqualEpsilon(q.PeturbationOriginZ, s.PeturbationOriginZ, float.Epsilon) // q.PeturbationOriginZ != s.PeturbationOriginZ
-                        || !ApproximatelyEqualEpsilon(q.PositionAnglesW, s.PositionAnglesW, float.Epsilon) //q.PositionAnglesW != s.PositionAnglesW
-                        || !ApproximatelyEqualEpsilon(q.PositionAnglesX, s.PositionAnglesX, float.Epsilon) //q.PositionAnglesX != s.PositionAnglesX
-                        || !ApproximatelyEqualEpsilon(q.PositionAnglesY, s.PositionAnglesY, float.Epsilon) //q.PositionAnglesY != s.PositionAnglesY
-                        || !ApproximatelyEqualEpsilon(q.PositionAnglesZ, s.PositionAnglesZ, float.Epsilon) //q.PositionAnglesZ != s.PositionAnglesZ
-                        || q.PositionObjCellId != s.PositionObjCellId
-                        || !ApproximatelyEqualEpsilon(q.PositionOriginX, s.PositionOriginX, float.Epsilon) //q.PositionOriginX != s.PositionOriginX
-                        || !ApproximatelyEqualEpsilon(q.PositionOriginY, s.PositionOriginY, float.Epsilon) //q.PositionOriginY != s.PositionOriginY
-                        || !ApproximatelyEqualEpsilon(q.PositionOriginZ, s.PositionOriginZ, float.Epsilon) //q.PositionOriginZ != s.PositionOriginZ
-                        || !ApproximatelyEqualEpsilon(q.PowerVariance, s.PowerVariance, float.Epsilon) //q.PowerVariance != s.PowerVariance
-                        || !ApproximatelyEqualEpsilon(q.Proportion, s.Proportion, float.Epsilon) //q.Proportion != s.Proportion
-                        || q.SlayerCreatureType != s.SlayerCreatureType
-                        || !ApproximatelyEqualEpsilon(q.SlayerDamageBonus, s.SlayerDamageBonus, float.Epsilon) //q.SlayerDamageBonus != s.SlayerDamageBonus
-                        || q.Source != s.Source
-                        || q.SourceLoss != s.SourceLoss
-                        || !ApproximatelyEqualEpsilon(q.SpreadAngle, s.SpreadAngle, float.Epsilon) //q.SpreadAngle != s.SpreadAngle
-                        || q.StatModKey != s.StatModKey
-                        || q.StatModType != s.StatModType
-                        || !ApproximatelyEqualEpsilon(q.StatModVal, s.StatModVal, float.Epsilon) //q.StatModVal != s.StatModVal
-                        || q.TransferBitfield != s.TransferBitfield
-                        || q.TransferCap != s.TransferCap
-                        || q.Variance != s.Variance
-                        || !ApproximatelyEqualEpsilon(q.VerticalAngle, s.VerticalAngle, float.Epsilon) //q.VerticalAngle != s.VerticalAngle
-                        || q.Wcid != s.Wcid
-                        )
-                        deDuped.Add(q);
-                }
-                else
-                    deDuped.Add(q);
+                foreach (var thing in deDupedSpells)
+                    thing.LastModified = GetTimestampForExport();
             }
 
-            foreach (var thing in deDuped)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            //SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
-            SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\", Globals.WeenieNames, true);
+            if (deDupedSpells.Count > 0)
+                //SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
+                SpellsSQLWriter.WriteFiles(deDupedSpells, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\", Globals.WeenieNames, true);
 
             var cacheIds = cacheSpells.Select(x => x.Id).ToHashSet();
             var spellIds = results.Select(x => x.Id).ToHashSet();
-            var deDupeIds = deDuped.Select(x => x.Id).ToHashSet();
+            var deDupeIds = deDupedSpells.Select(x => x.Id).ToHashSet();
 
             var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
 
-            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} spells exported." + Environment.NewLine;
+            txtACEDatabaseConnector.Text += $" completed. {deDupedSpells.Count:N0} spells exported." + Environment.NewLine;
 
             txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged spells." + Environment.NewLine;
 
             cmdACE2SpellsParse.Enabled = true;
         }
 
-        public static bool ApproximatelyEqualEpsilon(float? a, float? b, float epsilon, int places = 6)
+        private void DeDupeSpells(List<ACE.Database.Models.World.Spell> cacheSpells, List<ACE.Database.Models.World.Spell> spells, out List<ACE.Database.Models.World.Spell> deDupedSpells)
+        {
+            var x = cacheSpells.ToDictionary(z => z.Id, z => z);
+
+            deDupedSpells = new List<ACE.Database.Models.World.Spell>();
+
+            foreach (var q in spells)
+            {
+                if (x.ContainsKey(q.Id))
+                {
+                    var s = x[q.Id];
+
+                    if (q.Align != s.Align
+                        || q.BaseIntensity != s.BaseIntensity
+                        || q.Boost != s.Boost
+                        || q.BoostVariance != s.BoostVariance
+                        || !ApproximatelyEqual(q.CreateOffsetOriginX, s.CreateOffsetOriginX) //q.CreateOffsetOriginX != s.CreateOffsetOriginX
+                        || !ApproximatelyEqual(q.CreateOffsetOriginY, s.CreateOffsetOriginY) //q.CreateOffsetOriginY != s.CreateOffsetOriginY
+                        || !ApproximatelyEqual(q.CreateOffsetOriginZ, s.CreateOffsetOriginZ) //q.CreateOffsetOriginZ != s.CreateOffsetOriginZ
+                        || q.CritFreq != s.CritFreq
+                        || q.CritMultiplier != s.CritMultiplier
+                        || !ApproximatelyEqual(q.DamageRatio, s.DamageRatio) //q.DamageRatio != s.DamageRatio
+                        || q.DamageType != s.DamageType
+                        || !ApproximatelyEqual(q.DefaultLaunchAngle, s.DefaultLaunchAngle) //q.DefaultLaunchAngle != s.DefaultLaunchAngle
+                        || q.Destination != s.Destination
+                        || !ApproximatelyEqual(q.DimsOriginX, s.DimsOriginX) //q.DimsOriginX != s.DimsOriginX
+                        || !ApproximatelyEqual(q.DimsOriginY, s.DimsOriginY) //q.DimsOriginY != s.DimsOriginY
+                        || !ApproximatelyEqual(q.DimsOriginY, s.DimsOriginY) //q.DimsOriginY != s.DimsOriginZ
+                        || q.DispelSchool != s.DispelSchool
+                        || q.DotDuration != s.DotDuration
+                        || !ApproximatelyEqual(q.DrainPercentage, s.DrainPercentage) //q.DrainPercentage != s.DrainPercentage
+                        || q.ElementalModifier != s.ElementalModifier
+                        || q.EType != s.EType
+                        || q.IgnoreMagicResist != s.IgnoreMagicResist
+                        || q.ImbuedEffect != s.ImbuedEffect
+                        || q.Index != s.Index
+                        || q.Link != s.Link
+                        || !ApproximatelyEqual(q.LossPercent, s.LossPercent) //q.LossPercent != s.LossPercent
+                        || q.MaxBoostAllowed != s.MaxBoostAllowed
+                        || q.MaxPower != s.MaxPower
+                        || q.MinPower != s.MinPower
+                        || q.Name != s.Name
+                        || q.NonTracking != s.NonTracking
+                        || q.Number != s.Number
+                        || !ApproximatelyEqual(q.NumberVariance, s.NumberVariance) //q.NumberVariance != s.NumberVariance
+                        || q.NumProjectiles != s.NumProjectiles
+                        || q.NumProjectilesVariance != s.NumProjectilesVariance
+                        || !ApproximatelyEqual(q.PaddingOriginX, s.PaddingOriginX) //q.PaddingOriginX != s.PaddingOriginX
+                        || !ApproximatelyEqual(q.PaddingOriginX, s.PaddingOriginX) //q.PaddingOriginX != s.PaddingOriginY
+                        || !ApproximatelyEqual(q.PaddingOriginZ, s.PaddingOriginZ) //q.PaddingOriginZ != s.PaddingOriginZ
+                        || !ApproximatelyEqual(q.PeturbationOriginX, s.PeturbationOriginX) //q.PeturbationOriginX != s.PeturbationOriginX
+                        || !ApproximatelyEqual(q.PeturbationOriginY, s.PeturbationOriginY) //q.PeturbationOriginY != s.PeturbationOriginY
+                        || !ApproximatelyEqual(q.PeturbationOriginZ, s.PeturbationOriginZ) // q.PeturbationOriginZ != s.PeturbationOriginZ
+                        || !ApproximatelyEqual(q.PositionAnglesW, s.PositionAnglesW) //q.PositionAnglesW != s.PositionAnglesW
+                        || !ApproximatelyEqual(q.PositionAnglesX, s.PositionAnglesX) //q.PositionAnglesX != s.PositionAnglesX
+                        || !ApproximatelyEqual(q.PositionAnglesY, s.PositionAnglesY) //q.PositionAnglesY != s.PositionAnglesY
+                        || !ApproximatelyEqual(q.PositionAnglesZ, s.PositionAnglesZ) //q.PositionAnglesZ != s.PositionAnglesZ
+                        || q.PositionObjCellId != s.PositionObjCellId
+                        || !ApproximatelyEqual(q.PositionOriginX, s.PositionOriginX) //q.PositionOriginX != s.PositionOriginX
+                        || !ApproximatelyEqual(q.PositionOriginY, s.PositionOriginY) //q.PositionOriginY != s.PositionOriginY
+                        || !ApproximatelyEqual(q.PositionOriginZ, s.PositionOriginZ) //q.PositionOriginZ != s.PositionOriginZ
+                        || !ApproximatelyEqual(q.PowerVariance, s.PowerVariance) //q.PowerVariance != s.PowerVariance
+                        || !ApproximatelyEqual(q.Proportion, s.Proportion) //q.Proportion != s.Proportion
+                        || q.SlayerCreatureType != s.SlayerCreatureType
+                        || !ApproximatelyEqual(q.SlayerDamageBonus, s.SlayerDamageBonus) //q.SlayerDamageBonus != s.SlayerDamageBonus
+                        || q.Source != s.Source
+                        || q.SourceLoss != s.SourceLoss
+                        || !ApproximatelyEqual(q.SpreadAngle, s.SpreadAngle) //q.SpreadAngle != s.SpreadAngle
+                        || q.StatModKey != s.StatModKey
+                        || q.StatModType != s.StatModType
+                        || !ApproximatelyEqual(q.StatModVal, s.StatModVal) //q.StatModVal != s.StatModVal
+                        || q.TransferBitfield != s.TransferBitfield
+                        || q.TransferCap != s.TransferCap
+                        || q.Variance != s.Variance
+                        || !ApproximatelyEqual(q.VerticalAngle, s.VerticalAngle) //q.VerticalAngle != s.VerticalAngle
+                        || q.Wcid != s.Wcid
+                        )
+                        deDupedSpells.Add(q);
+                }
+                else
+                    deDupedSpells.Add(q);
+            }
+        }
+
+        public static bool ApproximatelyEqual(float? a, float? b, int places = 6)
         {
             if (a == null && b == null)
                 return true;
@@ -1119,6 +1188,12 @@ namespace PhatACCacheBinParser
             var x = Math.Abs(a.Value).ToString($"0.{new string('#', places)}");
             var y = Math.Abs(b.Value).ToString($"0.{new string('#', places)}");
 
+            //if ((x == $"-0.{new string('0', places)}" && y == $"0.{new string('0', places)}")
+            //    || (x == $"0.{new string('0', places)}" && y == $"-0.{new string('0', places)}")
+            //    || (x == "0" && y == "-0")
+            //    || (x == "-0" && y == "0"))
+            //    return true;
+
             return x.Equals(y);
         }
 
@@ -1128,107 +1203,77 @@ namespace PhatACCacheBinParser
 
             txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Treasure from database... ";
 
-            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
-
-            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
-
-            //var cacheSpells = Globals.CacheBin.SpellTableExtendedData.ConvertToACE();
-
-            //var results = Globals.ACEDatabase.WorldDbContext.Spell
-            //        .AsNoTracking()
-            //        .ToList();
-
-            //var x = cacheSpells.ToDictionary(z => z.Id, z => z);
-
-            //var deDuped = new List<ACE.Database.Models.World.Spell>();
-
-            //foreach (var q in results)
-            //{
-            //    q.LastModified = DateTime.Now;
-
-            //    if (x.ContainsKey(q.Id))
-            //    {
-            //        var s = x[q.Id];
-
-            //        if (q.Align != s.Align || q.BaseIntensity != s.BaseIntensity || q.Boost != s.Boost || q.BoostVariance != s.BoostVariance || q.CreateOffsetOriginX != s.CreateOffsetOriginX || q.CreateOffsetOriginY != s.CreateOffsetOriginY || q.CreateOffsetOriginZ != s.CreateOffsetOriginZ
-            //            || q.CritFreq != s.CritFreq || q.CritMultiplier != s.CritMultiplier || q.DamageRatio != s.DamageRatio || q.DamageType != s.DamageType || q.DefaultLaunchAngle != s.DefaultLaunchAngle || q.Destination != s.Destination || q.DimsOriginX != s.DimsOriginX
-            //            || q.DimsOriginY != s.DimsOriginY || q.DimsOriginZ != s.DimsOriginZ || q.DispelSchool != s.DispelSchool || q.DotDuration != s.DotDuration || q.DrainPercentage != s.DrainPercentage || q.ElementalModifier != s.ElementalModifier || q.EType != s.EType
-            //            || q.IgnoreMagicResist != s.IgnoreMagicResist || q.ImbuedEffect != s.ImbuedEffect || q.Index != s.Index || q.Link != s.Link || q.LossPercent != s.LossPercent || q.MaxBoostAllowed != s.MaxBoostAllowed || q.MaxPower != s.MaxPower || q.MinPower != s.MinPower
-            //            || q.Name != s.Name || q.NonTracking != s.NonTracking || q.Number != s.Number || q.NumberVariance != s.NumberVariance || q.NumProjectiles != s.NumProjectiles || q.NumProjectilesVariance != s.NumProjectilesVariance || q.PaddingOriginX != s.PaddingOriginX
-            //            || q.PaddingOriginY != s.PaddingOriginY || q.PaddingOriginZ != s.PaddingOriginZ || q.PeturbationOriginX != s.PeturbationOriginX || q.PeturbationOriginY != s.PeturbationOriginY || q.PeturbationOriginZ != s.PeturbationOriginZ || q.PositionAnglesW != s.PositionAnglesW
-            //            || q.PositionAnglesX != s.PositionAnglesX || q.PositionAnglesY != s.PositionAnglesY || q.PositionAnglesZ != s.PositionAnglesZ || q.PositionObjCellId != s.PositionObjCellId || q.PositionOriginX != s.PositionOriginX || q.PositionOriginY != s.PositionOriginY
-            //            || q.PositionOriginZ != s.PositionOriginZ || q.PowerVariance != s.PowerVariance || q.Proportion != s.Proportion || q.SlayerCreatureType != s.SlayerCreatureType || q.SlayerDamageBonus != s.SlayerDamageBonus || q.Source != s.Source || q.SourceLoss != s.SourceLoss
-            //            || q.SpreadAngle != s.SpreadAngle || q.StatModKey != s.StatModKey || q.StatModType != s.StatModType || q.StatModVal != s.StatModVal || q.TransferBitfield != s.TransferBitfield || q.TransferCap != s.TransferCap || q.Variance != s.Variance || q.VerticalAngle != s.VerticalAngle
-            //            || q.Wcid != s.Wcid
-            //            )
-            //            deDuped.Add(q);
-            //    }
-            //    else
-            //        deDuped.Add(q);
-            //}
-
             var cacheTreasureDeath = Globals.CacheBin.TreasureTable.DeathTreasure.ConvertToACE();
             var cacheTreasureWielded = Globals.CacheBin.TreasureTable.WieldedTreasure.ConvertToACE();
 
             var treasureDeath = Globals.ACEDatabase.GetAllTreasureDeath();
             var treasureWielded = Globals.ACEDatabase.GetAllTreasureWielded();
 
-            //var treasureWielded = new Dictionary<uint, List<ACE.Database.Models.World.TreasureWielded>>();
-            //foreach (var item in aceTreasureWielded)
-            //{
-            //    if (!treasureWielded.ContainsKey(item.TreasureType))
-            //        treasureWielded.Add(item.TreasureType, new List<ACE.Database.Models.World.TreasureWielded>());
+            DeDupeTreasureDeath(cacheTreasureDeath, treasureDeath, out var deDupedTreasureDeath);
+            DeDupeTreasureWielded(cacheTreasureWielded, treasureWielded, out var deDupedTreasureWielded);
 
-            //    treasureWielded[item.TreasureType].Add(item);
-            //}
-            //var treasureDeath = new Dictionary<uint, ACE.Database.Models.World.TreasureDeath>();
-            //foreach (var item in aceTreasureDeath)
-            //{
-            //    if (!treasureDeath.ContainsKey(item.TreasureType))
-            //        treasureDeath.Add(item.TreasureType, item);
-            //}
+            //foreach (var thing in deDupedTreasureDeath)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
 
-            var deDupedTreasureDeath = new List<ACE.Database.Models.World.TreasureDeath>();
+            //foreach (var thing in deDupedTreasureWielded)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
 
-            foreach (var x in treasureDeath)
+            if (deDupedTreasureDeath.Count > 0)
+                //TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Death\\", true);
+                TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Death\\", true);
+            if (deDupedTreasureWielded.Count > 0)
+                //TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Wielded\\", Globals.WeenieNames, true);
+                TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Wielded\\", Globals.WeenieNames, true);
+
+            if (usePrevVersion)
             {
-                //x.LastModified = DateTime.Now;
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
 
-                var y = cacheTreasureDeath.FirstOrDefault(z => z.TreasureType == x.TreasureType);
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.TreasureDeath.Load();
+                prevContext.TreasureWielded.Load();
+                var prevTreasureDeath = prevContext.TreasureDeath.ToList();
+                var prevTreasureWielded = prevContext.TreasureWielded.ToList();
 
-                if (y == null)
-                    deDupedTreasureDeath.Add(x);
-                else
-                {
-                    if (x.ItemChance != y.ItemChance || x.ItemMaxAmount != y.ItemMaxAmount || x.ItemMinAmount != y.ItemMinAmount || x.ItemTreasureTypeSelectionChances != y.ItemTreasureTypeSelectionChances || x.LootQualityMod != y.LootQualityMod || x.MagicItemChance != y.MagicItemChance
-                        || x.MagicItemMaxAmount != y.MagicItemMaxAmount || x.MagicItemMinAmount != y.MagicItemMinAmount || x.MagicItemTreasureTypeSelectionChances != y.MagicItemTreasureTypeSelectionChances || x.MundaneItemChance != y.MundaneItemChance || x.MundaneItemMaxAmount != y.MundaneItemMaxAmount
-                        || x.MundaneItemMinAmount != y.MundaneItemMinAmount || x.MundaneItemTypeSelectionChances != y.MundaneItemTypeSelectionChances || x.Tier != y.Tier || x.TreasureType != y.TreasureType || x.UnknownChances != y.UnknownChances
-                        )
-                        deDupedTreasureDeath.Add(x);
-                }
+                DeDupeTreasureDeath(prevTreasureDeath, deDupedTreasureDeath, out deDupedTreasureDeath);
+                DeDupeTreasureWielded(prevTreasureWielded, deDupedTreasureWielded, out deDupedTreasureWielded);
+
+                foreach (var thing in deDupedTreasureDeath)
+                    thing.LastModified = GetTimestampForExport();
+                foreach (var thing in deDupedTreasureWielded)
+                    thing.LastModified = GetTimestampForExport();
             }
 
-            var deDupedTreasureWielded = new List<ACE.Database.Models.World.TreasureWielded>();
+            if (deDupedTreasureDeath.Count > 0)
+                //TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Death\\", true);
+                TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Death\\", true);
+            if (deDupedTreasureWielded.Count > 0)
+                //TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Wielded\\", Globals.WeenieNames, true);
+                TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Wielded\\", Globals.WeenieNames, true);
 
-            //foreach (var x in treasureWielded)
-            //{
-            //    //x.LastModified = DateTime.Now;
+            var cacheTDIds = cacheTreasureDeath.Select(x => x.TreasureType).ToHashSet();
+            var cacheTWIds = cacheTreasureWielded.Select(x => x.TreasureType).ToHashSet();
+            var tdIds = treasureDeath.Select(x => x.TreasureType).ToHashSet();
+            var twIds = treasureWielded.Select(x => x.TreasureType).ToHashSet();
+            var deDupeTDIds = deDupedTreasureDeath.Select(x => x.TreasureType).ToHashSet();
+            var deDupeTWIds = deDupedTreasureWielded.Select(x => x.TreasureType).ToHashSet();
 
-            //    var y = cacheTreasureWielded.FirstOrDefault(z => z.TreasureType == x.TreasureType);
+            var deletedTDIds = cacheTDIds.Except(tdIds).Except(deDupeTDIds).ToHashSet();
+            var deletedTWIds = cacheTWIds.Except(twIds).Except(deDupeTWIds).ToHashSet();
 
-            //    if (y == null)
-            //        deDupedTreasureWielded.Add(x);
-            //    else
-            //    {
-            //        if (x.ContinuesPreviousSet != y.ContinuesPreviousSet || x.HasSubSet != y.HasSubSet || x.PaletteId != y.PaletteId || x.Probability != y.Probability || x.SetStart != y.SetStart || x.Shade != y.Shade || x.StackSize != y.StackSize || x.StackSizeVariance != y.StackSizeVariance
-            //            || x.TreasureType != y.TreasureType || x.Unknown1 != y.Unknown1 || x.Unknown10 != y.Unknown10 || x.Unknown11 != y.Unknown11 || x.Unknown12 != y.Unknown12 || x.Unknown3 != y.Unknown3 || x.Unknown4 != y.Unknown4 || x.Unknown5 != y.Unknown5 || x.Unknown9 != y.Unknown9
-            //            || x.WeenieClassId != y.WeenieClassId
-            //            )
-            //            deDupedTreasureWielded.Add(x);
-            //    }
-            //}
+            txtACEDatabaseConnector.Text += $" completed. {deDupedTreasureDeath.Count:N0} death treasure and {deDupedTreasureWielded.GroupBy(x => x.TreasureType).Select(g => g.First()).ToList().Count:N0} wielded treasure exported." + Environment.NewLine;
 
-            //var ids = treasureWielded.GroupBy(x => x.TreasureType).Select(y => y.First()).Select(z => z.TreasureType).Distinct().ToHashSet();
+            txtACEDatabaseConnector.Text += $"Skipped {cacheTDIds.Except(deDupeTDIds).Except(deletedTDIds).Count():N0} unchanged death treasure and {cacheTWIds.Except(deDupeTWIds).Except(deletedTWIds).Count():N0} unchanged wielded treasure." + Environment.NewLine;
+
+            cmdACE3TreasureParse.Enabled = true;
+        }
+
+        private void DeDupeTreasureWielded(List<ACE.Database.Models.World.TreasureWielded> cacheTreasureWielded, List<ACE.Database.Models.World.TreasureWielded> treasureWielded, out List<ACE.Database.Models.World.TreasureWielded> deDupedTreasureWielded)
+        {
+            deDupedTreasureWielded = new List<ACE.Database.Models.World.TreasureWielded>();
+
             var ids = treasureWielded.GroupBy(x => x.TreasureType).Select(y => y.First()).Select(z => z.TreasureType).ToHashSet();
 
             foreach (var x in ids)
@@ -1274,35 +1319,27 @@ namespace PhatACCacheBinParser
                     }
                 }
             }
+        }
 
-            foreach (var thing in deDupedTreasureDeath)
-                thing.LastModified = new DateTime(2021, 11, 1);
+        private void DeDupeTreasureDeath(List<ACE.Database.Models.World.TreasureDeath> cacheTreasureDeath, List<ACE.Database.Models.World.TreasureDeath> treasureDeath, out List<ACE.Database.Models.World.TreasureDeath> deDupedTreasureDeath)
+        {
+            deDupedTreasureDeath = new List<ACE.Database.Models.World.TreasureDeath>();
 
-            foreach (var thing in deDupedTreasureWielded)
-                thing.LastModified = new DateTime(2021, 11, 1);
+            foreach (var x in treasureDeath)
+            {
+                var y = cacheTreasureDeath.FirstOrDefault(z => z.TreasureType == x.TreasureType);
 
-            //TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Death\\", true);
-            //TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\SQL\\Wielded\\", Globals.WeenieNames, true);
-            TreasureSQLWriter.WriteFiles(deDupedTreasureDeath, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Death\\", true);
-            TreasureSQLWriter.WriteFiles(deDupedTreasureWielded, Settings.Default["GDLESQLOutputFolder"] + "\\3 TreasureTable\\Wielded\\", Globals.WeenieNames, true);
-
-            //SpellsSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\2 SpellTableExtendedData\\SQL\\", Globals.WeenieNames, true);
-
-            var cacheTDIds = cacheTreasureDeath.Select(x => x.TreasureType).ToHashSet();
-            var cacheTWIds = cacheTreasureWielded.Select(x => x.TreasureType).ToHashSet();
-            var tdIds = treasureDeath.Select(x => x.TreasureType).ToHashSet();
-            var twIds = treasureWielded.Select(x => x.TreasureType).ToHashSet();
-            var deDupeTDIds = deDupedTreasureDeath.Select(x => x.TreasureType).ToHashSet();
-            var deDupeTWIds = deDupedTreasureWielded.Select(x => x.TreasureType).ToHashSet();
-
-            var deletedTDIds = cacheTDIds.Except(tdIds).Except(deDupeTDIds).ToHashSet();
-            var deletedTWIds = cacheTWIds.Except(twIds).Except(deDupeTWIds).ToHashSet();
-
-            txtACEDatabaseConnector.Text += $" completed. {deDupedTreasureDeath.Count:N0} death treasure and {deDupedTreasureWielded.GroupBy(x => x.TreasureType).Select(g => g.First()).ToList().Count:N0} wielded treasure exported." + Environment.NewLine;
-
-            txtACEDatabaseConnector.Text += $"Skipped {cacheTDIds.Except(deDupeTDIds).Except(deletedTDIds).Count():N0} unchanged death treasure and {cacheTWIds.Except(deDupeTWIds).Except(deletedTWIds).Count():N0} unchanged wielded treasure." + Environment.NewLine;
-
-            cmdACE3TreasureParse.Enabled = true;
+                if (y == null)
+                    deDupedTreasureDeath.Add(x);
+                else
+                {
+                    if (x.ItemChance != y.ItemChance || x.ItemMaxAmount != y.ItemMaxAmount || x.ItemMinAmount != y.ItemMinAmount || x.ItemTreasureTypeSelectionChances != y.ItemTreasureTypeSelectionChances || x.LootQualityMod != y.LootQualityMod || x.MagicItemChance != y.MagicItemChance
+                        || x.MagicItemMaxAmount != y.MagicItemMaxAmount || x.MagicItemMinAmount != y.MagicItemMinAmount || x.MagicItemTreasureTypeSelectionChances != y.MagicItemTreasureTypeSelectionChances || x.MundaneItemChance != y.MundaneItemChance || x.MundaneItemMaxAmount != y.MundaneItemMaxAmount
+                        || x.MundaneItemMinAmount != y.MundaneItemMinAmount || x.MundaneItemTypeSelectionChances != y.MundaneItemTypeSelectionChances || x.Tier != y.Tier || x.TreasureType != y.TreasureType || x.UnknownChances != y.UnknownChances
+                        )
+                        deDupedTreasureDeath.Add(x);
+                }
+            }
         }
 
         private void cmdACE4CraftingParse_Click(object sender, EventArgs e)
@@ -1311,38 +1348,7 @@ namespace PhatACCacheBinParser
 
             txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Crafting from database... ";
 
-            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
-
-            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
-
             var cacheCraftingTables = Globals.CacheBin.CraftingTable.ConvertToACE();
-
-            //var cookBooks = Globals.ACEDatabase.WorldDbContext.CookBook
-            //        .AsNoTracking()
-            //        .ToList();
-
-            //var recipes = Globals.ACEDatabase.WorldDbContext.Recipe
-            //        .AsNoTracking()
-            //        .Include(r => r.RecipeMod)
-            //            .ThenInclude(r => r.RecipeModsBool)
-            //        .Include(r => r.RecipeMod)
-            //            .ThenInclude(r => r.RecipeModsDID)
-            //        .Include(r => r.RecipeMod)
-            //            .ThenInclude(r => r.RecipeModsFloat)
-            //        .Include(r => r.RecipeMod)
-            //            .ThenInclude(r => r.RecipeModsIID)
-            //        .Include(r => r.RecipeMod)
-            //            .ThenInclude(r => r.RecipeModsInt)
-            //        .Include(r => r.RecipeMod)
-            //            .ThenInclude(r => r.RecipeModsString)
-            //        .Include(r => r.RecipeRequirementsBool)
-            //        .Include(r => r.RecipeRequirementsDID)
-            //        .Include(r => r.RecipeRequirementsFloat)
-            //        .Include(r => r.RecipeRequirementsIID)
-            //        .Include(r => r.RecipeRequirementsInt)
-            //        .Include(r => r.RecipeRequirementsString)
-            //        .ToList();
-
             Globals.ACEDatabase.WorldDbContext.CookBook.Load();
             Globals.ACEDatabase.WorldDbContext.Recipe.Load();
             Globals.ACEDatabase.WorldDbContext.RecipeMod.Load();
@@ -1358,26 +1364,130 @@ namespace PhatACCacheBinParser
             Globals.ACEDatabase.WorldDbContext.RecipeRequirementsIID.Load();
             Globals.ACEDatabase.WorldDbContext.RecipeRequirementsInt.Load();
             Globals.ACEDatabase.WorldDbContext.RecipeRequirementsString.Load();
-            //var results = Globals.ACEDatabase.WorldDbContext.Encounter.ToList();
             var cookBooks = Globals.ACEDatabase.WorldDbContext.CookBook.ToList();
             var recipes = Globals.ACEDatabase.WorldDbContext.Recipe.ToList();
 
-            var deDupedCookBooks = new List<ACE.Database.Models.World.CookBook>();
-            var deDupedRecipes = new List<ACE.Database.Models.World.Recipe>();
+            DeDupeCrafting(cacheCraftingTables.Recipies, cacheCraftingTables.CookBooks, recipes, cookBooks, out var deDupedRecipes, out var deDupedCookBooks, out var deDupeRecipeIds);
 
-            var deDupeRecipeIds = new HashSet<uint>();
+            //foreach (var thing in deDupedRecipes)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
+
+            //foreach (var thing in deDupedCookBooks)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
+
+            if (deDupedRecipes.Count > 0 && deDupedCookBooks.Count > 0)
+                //CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\", true);
+                CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\", true);
+
+            var cacheIds = cacheCraftingTables.Recipies.Select(x => x.Id).ToHashSet();
+            var spellIds = recipes.Select(x => x.Id).ToHashSet();
+            var deDupeIds = deDupedRecipes.Select(x => x.Id).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            if (writeDeletedFiles && deletedIds.Count > 0)
+            {
+                var sqlWriter = new ACE.Database.SQLFormatters.World.RecipeSQLWriter();
+
+                sqlWriter.WeenieNames = Globals.WeenieNames;
+
+                //Parallel.ForEach(sortedInput, kvp =>
+                ////foreach (var kvp in sortedInput)
+                //{
+                //    string fileName = sqlWriter.GetDefaultFileName(kvp.Value[0]);
+
+                //    using (StreamWriter writer = new StreamWriter(outputFolder + fileName))
+                //    {
+                //        if (includeDELETEStatementBeforeInsert)
+                //        {
+                //            sqlWriter.CreateSQLDELETEStatement(kvp.Value, writer);
+                //            writer.WriteLine();
+                //        }
+
+                //        sqlWriter.CreateSQLINSERTStatement(kvp.Value, writer);
+                //    }
+                //});
+
+                foreach (var lb in deletedIds)
+                {
+                    var thing = cacheCraftingTables.Recipies.FirstOrDefault(i => i.Id == lb);//new ACE.Database.Models.World.Recipe { Id = lb };
+
+                    string fileName = sqlWriter.GetDefaultFileName(thing, cacheCraftingTables.CookBooks.Where(i => i.RecipeId == lb).ToList());//new List<ACE.Database.Models.World.CookBook>());
+
+                    //using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\" + fileName.Replace(".sql"," - DELETED.sql")))
+                    using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\" + fileName.Replace(".sql", " - DELETED.sql")))
+                    {
+                        sqlWriter.CreateSQLDELETEStatement(thing, writer);
+                        //writer.WriteLine();
+                    }
+                }
+            }
+
+            if (usePrevVersion)
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.CookBook.Load();
+                prevContext.Recipe.Load();
+                prevContext.RecipeMod.Load();
+                prevContext.RecipeModsBool.Load();
+                prevContext.RecipeModsDID.Load();
+                prevContext.RecipeModsFloat.Load();
+                prevContext.RecipeModsIID.Load();
+                prevContext.RecipeModsInt.Load();
+                prevContext.RecipeModsString.Load();
+                prevContext.RecipeRequirementsBool.Load();
+                prevContext.RecipeRequirementsDID.Load();
+                prevContext.RecipeRequirementsFloat.Load();
+                prevContext.RecipeRequirementsIID.Load();
+                prevContext.RecipeRequirementsInt.Load();
+                prevContext.RecipeRequirementsString.Load();
+                var prevCookBooks = prevContext.CookBook.ToList();
+                var prevRecipes = prevContext.Recipe.ToList();
+
+                //DeDupeCrafting(prevRecipes, prevCookBooks, recipes, cookBooks, out var deDupedRecipes, out var deDupedCookBooks, out var deDupeRecipeIds);
+                DeDupeCrafting(prevRecipes, prevCookBooks, deDupedRecipes, deDupedCookBooks, out deDupedRecipes, out deDupedCookBooks, out deDupeRecipeIds);
+
+                foreach (var thing in deDupedRecipes)
+                    thing.LastModified = GetTimestampForExport();
+
+                foreach (var thing in deDupedCookBooks)
+                    thing.LastModified = GetTimestampForExport();
+            }
+
+            if (deDupedRecipes.Count > 0 && deDupedCookBooks.Count > 0)
+                //CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\", true);
+                CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\", true);          
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedCookBooks.Count:N0} cookbooks and {deDupedRecipes.Count:N0} recipes for a combined total of {deDupeRecipeIds.Count:N0} recipes exported." + Environment.NewLine;
+
+            //cacheRegion.Where(x => !deDupeLbs.Contains(x.Landblock)).ToList().Count
+            txtACEDatabaseConnector.Text += $"Skipped {cacheCraftingTables.CookBooks.Where(x=>!deDupeIds.Contains(x.RecipeId)).ToList().Count:N0} unchanged cookbooks and {cacheCraftingTables.Recipies.Where(x => !deDupeIds.Contains(x.Id)).ToList().Count:N0} unchanged recipes for a combined total of {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged recipes." + Environment.NewLine;
+
+            cmdACE4CraftingParse.Enabled = true;
+        }
+
+        private void DeDupeCrafting(List<ACE.Database.Models.World.Recipe> cacheRecipes, List<ACE.Database.Models.World.CookBook> cacheCookBooks, List<ACE.Database.Models.World.Recipe> recipes, List<ACE.Database.Models.World.CookBook> cookBooks, out List<ACE.Database.Models.World.Recipe> deDupedRecipes, out List<ACE.Database.Models.World.CookBook> deDupedCookBooks, out HashSet<uint> deDupeRecipeIds)
+        {
+            deDupedCookBooks = new List<ACE.Database.Models.World.CookBook>();
+            deDupedRecipes = new List<ACE.Database.Models.World.Recipe>();
+
+            deDupeRecipeIds = new HashSet<uint>();
 
             foreach (var cookBook in cookBooks)
             {
-                var cacheCookbook = cacheCraftingTables.CookBooks.FirstOrDefault(x => x.RecipeId == cookBook.RecipeId && x.SourceWCID == cookBook.SourceWCID && x.TargetWCID == cookBook.TargetWCID);
+                var cacheCookbook = cacheCookBooks.FirstOrDefault(x => x.RecipeId == cookBook.RecipeId && x.SourceWCID == cookBook.SourceWCID && x.TargetWCID == cookBook.TargetWCID);
 
                 if (cacheCookbook == null)
                     deDupeRecipeIds.Add(cookBook.RecipeId);
-            }        
+            }
 
             foreach (var recipe in recipes)
             {
-                var cacheRecipe = cacheCraftingTables.Recipies.FirstOrDefault(x => x.Id == recipe.Id);
+                var cacheRecipe = cacheRecipes.FirstOrDefault(x => x.Id == recipe.Id);
 
                 if (cacheRecipe == null)
                 {
@@ -1422,13 +1532,13 @@ namespace PhatACCacheBinParser
                     continue;
                 }
 
-                var deDupe = false;
-                deDupe:
-                if (deDupe)
+                var notIdentical = false;
+            addToHashSet:
+                if (notIdentical)
                 {
                     deDupeRecipeIds.Add(recipe.Id);
                     continue;
-                }    
+                }
 
                 for (var i = 0; i < recipe.RecipeRequirementsBool.Count; i++)
                 {
@@ -1436,8 +1546,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheReq == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var req = recipe.RecipeRequirementsBool.ElementAt(i);
@@ -1450,9 +1560,9 @@ namespace PhatACCacheBinParser
                         || req.Value != cacheReq.Value
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
-                    }    
+                        notIdentical = true;
+                        goto addToHashSet;
+                    }
                 }
 
                 for (var i = 0; i < recipe.RecipeRequirementsDID.Count; i++)
@@ -1461,8 +1571,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheReq == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var req = recipe.RecipeRequirementsDID.ElementAt(i);
@@ -1475,8 +1585,8 @@ namespace PhatACCacheBinParser
                         || req.Value != cacheReq.Value
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
                 }
 
@@ -1486,8 +1596,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheReq == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var req = recipe.RecipeRequirementsFloat.ElementAt(i);
@@ -1500,8 +1610,8 @@ namespace PhatACCacheBinParser
                         || req.Value != cacheReq.Value
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
                 }
 
@@ -1511,8 +1621,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheReq == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var req = recipe.RecipeRequirementsIID.ElementAt(i);
@@ -1525,8 +1635,8 @@ namespace PhatACCacheBinParser
                         || req.Value != cacheReq.Value
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
                 }
 
@@ -1536,8 +1646,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheReq == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var req = recipe.RecipeRequirementsInt.ElementAt(i);
@@ -1550,8 +1660,8 @@ namespace PhatACCacheBinParser
                         || req.Value != cacheReq.Value
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
                 }
 
@@ -1561,8 +1671,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheReq == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var req = recipe.RecipeRequirementsString.ElementAt(i);
@@ -1575,8 +1685,8 @@ namespace PhatACCacheBinParser
                         || req.Value != cacheReq.Value
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
                 }
 
@@ -1586,8 +1696,8 @@ namespace PhatACCacheBinParser
 
                     if (cacheMod == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     var mod = recipe.RecipeMod.ElementAt(i);
@@ -1606,11 +1716,11 @@ namespace PhatACCacheBinParser
                         || mod.RecipeModsString.Count != cacheMod.RecipeModsString.Count
                         || mod.Stamina != cacheMod.Stamina
                         || mod.Unknown7 != cacheMod.Unknown7
-                        || mod.Unknown9 != cacheMod.Unknown9                        
+                        || mod.Unknown9 != cacheMod.Unknown9
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToHashSet;
                     }
 
                     for (var x = 0; x < mod.RecipeModsBool.Count; x++)
@@ -1619,8 +1729,8 @@ namespace PhatACCacheBinParser
 
                         if (cacheModReq == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
 
                         var modReq = mod.RecipeModsBool.ElementAt(x);
@@ -1633,8 +1743,8 @@ namespace PhatACCacheBinParser
                             || modReq.Value != cacheModReq.Value
                             )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
                     }
 
@@ -1644,8 +1754,8 @@ namespace PhatACCacheBinParser
 
                         if (cacheModReq == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
 
                         var modReq = mod.RecipeModsDID.ElementAt(x);
@@ -1658,8 +1768,8 @@ namespace PhatACCacheBinParser
                             || modReq.Value != cacheModReq.Value
                             )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
                     }
 
@@ -1669,8 +1779,8 @@ namespace PhatACCacheBinParser
 
                         if (cacheModReq == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
 
                         var modReq = mod.RecipeModsFloat.ElementAt(x);
@@ -1683,8 +1793,8 @@ namespace PhatACCacheBinParser
                             || modReq.Value != cacheModReq.Value
                             )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
                     }
 
@@ -1694,8 +1804,8 @@ namespace PhatACCacheBinParser
 
                         if (cacheModReq == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
 
                         var modReq = mod.RecipeModsIID.ElementAt(x);
@@ -1708,8 +1818,8 @@ namespace PhatACCacheBinParser
                             || modReq.Value != cacheModReq.Value
                             )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
                     }
 
@@ -1719,8 +1829,8 @@ namespace PhatACCacheBinParser
 
                         if (cacheModReq == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
 
                         var modReq = mod.RecipeModsInt.ElementAt(x);
@@ -1733,8 +1843,8 @@ namespace PhatACCacheBinParser
                             || modReq.Value != cacheModReq.Value
                             )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
                     }
 
@@ -1744,8 +1854,8 @@ namespace PhatACCacheBinParser
 
                         if (cacheModReq == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
 
                         var modReq = mod.RecipeModsString.ElementAt(x);
@@ -1758,76 +1868,18 @@ namespace PhatACCacheBinParser
                             || modReq.Value != cacheModReq.Value
                             )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToHashSet;
                         }
                     }
                 }
             }
 
 
-            deDupedCookBooks.AddRange(cookBooks.Where(x => deDupeRecipeIds.Contains(x.RecipeId)));
-            deDupedRecipes.AddRange(recipes.Where(x => deDupeRecipeIds.Contains(x.Id)));
+            var a = deDupeRecipeIds;
 
-            foreach (var thing in deDupedRecipes)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            foreach (var thing in deDupedCookBooks)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            //CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\", true);
-            CraftingSQLWriter.WriteFiles(deDupedRecipes, deDupedCookBooks, Globals.WeenieNames, Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\", true);
-
-            var cacheIds = cacheCraftingTables.Recipies.Select(x => x.Id).ToHashSet();
-            var spellIds = recipes.Select(x => x.Id).ToHashSet();
-            var deDupeIds = deDupedRecipes.Select(x => x.Id).ToHashSet();
-
-            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
-
-            if (deletedIds.Count > 0)
-            {
-                var sqlWriter = new ACE.Database.SQLFormatters.World.RecipeSQLWriter();
-
-                sqlWriter.WeenieNames = Globals.WeenieNames;
-
-                //Parallel.ForEach(sortedInput, kvp =>
-                ////foreach (var kvp in sortedInput)
-                //{
-                //    string fileName = sqlWriter.GetDefaultFileName(kvp.Value[0]);
-
-                //    using (StreamWriter writer = new StreamWriter(outputFolder + fileName))
-                //    {
-                //        if (includeDELETEStatementBeforeInsert)
-                //        {
-                //            sqlWriter.CreateSQLDELETEStatement(kvp.Value, writer);
-                //            writer.WriteLine();
-                //        }
-
-                //        sqlWriter.CreateSQLINSERTStatement(kvp.Value, writer);
-                //    }
-                //});
-
-                foreach (var lb in deletedIds)
-                {
-                    var thing = cacheCraftingTables.Recipies.FirstOrDefault(i => i.Id == lb);//new ACE.Database.Models.World.Recipe { Id = lb };
-
-                    string fileName = sqlWriter.GetDefaultFileName(thing, cacheCraftingTables.CookBooks.Where(i => i.RecipeId == lb).ToList());//new List<ACE.Database.Models.World.CookBook>());
-
-                    //using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\SQL\\" + fileName.Replace(".sql"," - DELETED.sql")))
-                    using (StreamWriter writer = new StreamWriter(Settings.Default["GDLESQLOutputFolder"] + "\\4 CraftTable\\" + fileName.Replace(".sql", " - DELETED.sql")))
-                    {
-                        sqlWriter.CreateSQLDELETEStatement(thing, writer);
-                        //writer.WriteLine();
-                    }
-                }
-            }
-
-            txtACEDatabaseConnector.Text += $" completed. {deDupedCookBooks.Count:N0} cookbooks and {deDupedRecipes.Count:N0} recipes for a combined total of {deDupeRecipeIds.Count:N0} recipes exported." + Environment.NewLine;
-
-            //cacheRegion.Where(x => !deDupeLbs.Contains(x.Landblock)).ToList().Count
-            txtACEDatabaseConnector.Text += $"Skipped {cacheCraftingTables.CookBooks.Where(x=>!deDupeIds.Contains(x.RecipeId)).ToList().Count:N0} unchanged cookbooks and {cacheCraftingTables.Recipies.Where(x => !deDupeIds.Contains(x.Id)).ToList().Count:N0} unchanged recipes for a combined total of {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged recipes." + Environment.NewLine;
-
-            cmdACE4CraftingParse.Enabled = true;
+            deDupedCookBooks.AddRange(cookBooks.Where(x => a.Contains(x.RecipeId)));
+            deDupedRecipes.AddRange(recipes.Where(x => a.Contains(x.Id)));
         }
 
         private void cmdACE5HousingParse_Click(object sender, EventArgs e)
@@ -1878,14 +1930,14 @@ namespace PhatACCacheBinParser
                     else
                     {
                         if (
-                               !ApproximatelyEqualEpsilon(b[0].AnglesW, a[0].AnglesW, float.Epsilon) //b[0].AnglesW != a[0].AnglesW
-                            || !ApproximatelyEqualEpsilon(b[0].AnglesX, a[0].AnglesX, float.Epsilon) //b[0].AnglesX != a[0].AnglesX
-                            || !ApproximatelyEqualEpsilon(b[0].AnglesY, a[0].AnglesY, float.Epsilon) //b[0].AnglesY != a[0].AnglesY
-                            || !ApproximatelyEqualEpsilon(b[0].AnglesZ, a[0].AnglesZ, float.Epsilon) //b[0].AnglesZ != a[0].AnglesZ
+                               !ApproximatelyEqual(b[0].AnglesW, a[0].AnglesW) //b[0].AnglesW != a[0].AnglesW
+                            || !ApproximatelyEqual(b[0].AnglesX, a[0].AnglesX) //b[0].AnglesX != a[0].AnglesX
+                            || !ApproximatelyEqual(b[0].AnglesY, a[0].AnglesY) //b[0].AnglesY != a[0].AnglesY
+                            || !ApproximatelyEqual(b[0].AnglesZ, a[0].AnglesZ) //b[0].AnglesZ != a[0].AnglesZ
                             || b[0].ObjCellId != a[0].ObjCellId
-                            || !ApproximatelyEqualEpsilon(b[0].OriginX, a[0].OriginX, float.Epsilon) //b[0].OriginX != a[0].OriginX
-                            || !ApproximatelyEqualEpsilon(b[0].OriginY, a[0].OriginY, float.Epsilon) //b[0].OriginY != a[0].OriginY
-                            || !ApproximatelyEqualEpsilon(b[0].OriginZ, a[0].OriginZ, float.Epsilon) //b[0].OriginZ != a[0].OriginZ
+                            || !ApproximatelyEqual(b[0].OriginX, a[0].OriginX) //b[0].OriginX != a[0].OriginX
+                            || !ApproximatelyEqual(b[0].OriginY, a[0].OriginY) //b[0].OriginY != a[0].OriginY
+                            || !ApproximatelyEqual(b[0].OriginZ, a[0].OriginZ) //b[0].OriginZ != a[0].OriginZ
                             )
                         {
                             deDuped.Add(q);
@@ -1893,14 +1945,14 @@ namespace PhatACCacheBinParser
                         else if (b.Count == a.Count && b.Count == 2)
                         {
                             if (
-                                   !ApproximatelyEqualEpsilon(b[1].AnglesW, a[1].AnglesW, float.Epsilon) //b[1].AnglesW != a[1].AnglesW
-                                || !ApproximatelyEqualEpsilon(b[1].AnglesX, a[1].AnglesX, float.Epsilon) //b[1].AnglesX != a[1].AnglesX
-                                || !ApproximatelyEqualEpsilon(b[1].AnglesY, a[1].AnglesY, float.Epsilon) //b[1].AnglesY != a[1].AnglesY
-                                || !ApproximatelyEqualEpsilon(b[1].AnglesZ, a[1].AnglesZ, float.Epsilon) //b[1].AnglesZ != a[1].AnglesZ
+                                   !ApproximatelyEqual(b[1].AnglesW, a[1].AnglesW) //b[1].AnglesW != a[1].AnglesW
+                                || !ApproximatelyEqual(b[1].AnglesX, a[1].AnglesX) //b[1].AnglesX != a[1].AnglesX
+                                || !ApproximatelyEqual(b[1].AnglesY, a[1].AnglesY) //b[1].AnglesY != a[1].AnglesY
+                                || !ApproximatelyEqual(b[1].AnglesZ, a[1].AnglesZ) //b[1].AnglesZ != a[1].AnglesZ
                                 || b[1].ObjCellId != a[1].ObjCellId
-                                || !ApproximatelyEqualEpsilon(b[1].OriginX, a[1].OriginX, float.Epsilon) //b[1].OriginX != a[1].OriginX
-                                || !ApproximatelyEqualEpsilon(b[1].OriginY, a[1].OriginY, float.Epsilon) //b[1].OriginY != a[1].OriginY
-                                || !ApproximatelyEqualEpsilon(b[1].OriginZ, a[1].OriginZ, float.Epsilon) //b[1].OriginZ != a[1].OriginZ
+                                || !ApproximatelyEqual(b[1].OriginX, a[1].OriginX) //b[1].OriginX != a[1].OriginX
+                                || !ApproximatelyEqual(b[1].OriginY, a[1].OriginY) //b[1].OriginY != a[1].OriginY
+                                || !ApproximatelyEqual(b[1].OriginZ, a[1].OriginZ) //b[1].OriginZ != a[1].OriginZ
                             )
                             {
                                 deDuped.Add(q);
@@ -1933,121 +1985,28 @@ namespace PhatACCacheBinParser
 
             txtACEDatabaseConnector.Text += Environment.NewLine + "Exporting Landblocks from database... ";
 
-            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
-
-            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
-
             var cachelandblockInstances = Globals.CacheBin.LandBlockData.ConvertToACE();
 
-            //var landblocks = Globals.ACEDatabase.GetAllLandblockInstances();
             Globals.ACEDatabase.WorldDbContext.LandblockInstance.Load();
             Globals.ACEDatabase.WorldDbContext.LandblockInstanceLink.Load();
             var landblocks = Globals.ACEDatabase.WorldDbContext.LandblockInstance.ToList();
 
-            //uint landblockToCloneFrom = 0x01C9;
-            //uint landblockToCloneTo = 0x003C;
-            //var landblocks = Globals.ACEDatabase.CloneLandblockToAnother(landblockToCloneFrom, landblockToCloneTo);
+            DeDupeLandblocks(cachelandblockInstances, landblocks, out var deDupedLandblockInstances);
 
-            var x = new Dictionary<uint, List<ACE.Database.Models.World.LandblockInstance>>();
+            //foreach (var thing in deDupedLandblockInstances)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
 
-            foreach (var h in cachelandblockInstances)
-            {
-                var lbid = h.ObjCellId >> 16;
-                if (!x.TryAdd(lbid, new List<ACE.Database.Models.World.LandblockInstance> { h }))
-                    x[lbid].Add(h);
-            }
-
-            var y = new Dictionary<uint, List<ACE.Database.Models.World.LandblockInstance>>();
-
-            foreach (var h in landblocks)
-            {
-                var lbid = h.ObjCellId >> 16;
-                if (!y.TryAdd(lbid, new List<ACE.Database.Models.World.LandblockInstance> { h }))
-                    y[lbid].Add(h);
-            }
-
-            var deDuped = new List<ACE.Database.Models.World.LandblockInstance>();
-            var deDupedIndex = new HashSet<uint>();
-
-            foreach (var q in landblocks)
-            {
-                //q.LastModified = DateTime.Now;
-
-                var lbid = q.ObjCellId >> 16;
-
-                if (!x.ContainsKey(lbid))
-                {
-                    deDuped.Add(q);
-                    deDupedIndex.Add(lbid);
-                }
-                else
-                {
-                    var a = x[lbid];
-                    var b = y[lbid];
-
-                    if (deDupedIndex.Contains(lbid))
-                        deDuped.Add(q);
-                    else if (a.Count != b.Count)
-                    {
-                        deDuped.Add(q);
-                        deDupedIndex.Add(lbid);
-                    }
-                    else
-                    {
-                        var c = a.FirstOrDefault(l => l.Guid == q.Guid);
-                        var d = b.FirstOrDefault(l => l.Guid == q.Guid);
-
-                        if (c == null && d != null)
-                        {
-                            deDuped.Add(q);
-                            deDupedIndex.Add(lbid);
-                        }
-                        //else if (c.AnglesW != d.AnglesW || c.AnglesX != d.AnglesX || c.AnglesY != d.AnglesY || c.IsLinkChild != d.IsLinkChild || c.ObjCellId != d.ObjCellId || c.OriginX != d.OriginX || c.OriginY != d.OriginY || c.OriginZ != d.OriginZ || c.WeenieClassId != d.WeenieClassId)
-                        else if (
-                               !ApproximatelyEqualEpsilon(c.AnglesW, d.AnglesW, float.Epsilon) //c.AnglesW != d.AnglesW
-                            || !ApproximatelyEqualEpsilon(c.AnglesX, d.AnglesX, float.Epsilon) //c.AnglesX != d.AnglesX
-                            || !ApproximatelyEqualEpsilon(c.AnglesY, d.AnglesY, float.Epsilon) //c.AnglesY != d.AnglesY
-                            || !ApproximatelyEqualEpsilon(c.AnglesZ, d.AnglesZ, float.Epsilon) //c.AnglesZ != d.AnglesZ
-                            || c.IsLinkChild != d.IsLinkChild
-                            || c.ObjCellId != d.ObjCellId
-                            || !ApproximatelyEqualEpsilon(c.OriginX, d.OriginX, float.Epsilon) //c.OriginX != d.OriginX
-                            || !ApproximatelyEqualEpsilon(c.OriginY, d.OriginY, float.Epsilon) //c.OriginY != d.OriginY
-                            || !ApproximatelyEqualEpsilon(c.OriginZ, d.OriginZ, float.Epsilon) //c.OriginZ != d.OriginZ
-                            || c.WeenieClassId != d.WeenieClassId
-                            )
-                        {
-                            deDuped.Add(q);
-                            deDupedIndex.Add(lbid);
-                        }
-                    }
-                }
-            }
-
-            deDuped.Clear();
-
-            foreach (var q in landblocks)
-            {
-                //q.LastModified = DateTime.Now;
-
-                var lbid = q.ObjCellId >> 16;
-
-                if (deDupedIndex.Contains(lbid))
-                    deDuped.Add(q);
-            }
-
-            foreach (var thing in deDuped)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            //LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
-            LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\", Globals.WeenieNames, true);
+            if (deDupedLandblockInstances.Count > 0)
+                //LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
+                LandblockSQLWriter.WriteFiles(deDupedLandblockInstances, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\", Globals.WeenieNames, true);
 
             var cacheLbs = cachelandblockInstances.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
             var encounterLbs = landblocks.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
-            var deDupeLbs = deDuped.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
+            var deDupeLbs = deDupedLandblockInstances.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
 
             var deletedLbs = cacheLbs.Except(encounterLbs).Except(deDupeLbs).ToHashSet();
 
-            if (deletedLbs.Count > 0)
+            if (writeDeletedFiles && deletedLbs.Count > 0)
             {
                 var sqlWriter = new ACE.Database.SQLFormatters.World.LandblockInstanceWriter();
 
@@ -2067,12 +2026,139 @@ namespace PhatACCacheBinParser
                 }
             }
 
+            if (usePrevVersion)
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.LandblockInstance.Load();
+                prevContext.LandblockInstanceLink.Load();
+                var prevLandblocks = prevContext.LandblockInstance.ToList();
+
+                DeDupeLandblocks(prevLandblocks, deDupedLandblockInstances, out deDupedLandblockInstances);
+
+                foreach (var thing in deDupedLandblockInstances)
+                    thing.LastModified = GetTimestampForExport();
+            }
+
+            if (deDupedLandblockInstances.Count > 0)
+                //LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
+                LandblockSQLWriter.WriteFiles(deDupedLandblockInstances, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\", Globals.WeenieNames, true);
+
             txtACEDatabaseConnector.Text += $" completed. {deDupeLbs.Count:N0} landblocks exported." + Environment.NewLine;
 
             //txtACEDatabaseConnector.Text += $"Skipped {cachelandblockInstances.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count - deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} unchanged landblocks." + Environment.NewLine;
             txtACEDatabaseConnector.Text += $"Skipped {cacheLbs.Except(deDupeLbs).Except(deletedLbs).Count():N0} unchanged landblocks." + Environment.NewLine;
 
             cmdACE6LandblocksParse.Enabled = true;
+        }
+
+        private void DeDupeLandblocks(List<ACE.Database.Models.World.LandblockInstance> cacheLandblockInstances, List<ACE.Database.Models.World.LandblockInstance> landblockInstances, out List<ACE.Database.Models.World.LandblockInstance> deDupedLandblockInstances)
+        {
+            ////var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            ////Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
+            //var cachelandblockInstances = Globals.CacheBin.LandBlockData.ConvertToACE();
+
+            ////var landblocks = Globals.ACEDatabase.GetAllLandblockInstances();
+            //Globals.ACEDatabase.WorldDbContext.LandblockInstance.Load();
+            //Globals.ACEDatabase.WorldDbContext.LandblockInstanceLink.Load();
+            //var landblocks = Globals.ACEDatabase.WorldDbContext.LandblockInstance.ToList();
+
+            ////uint landblockToCloneFrom = 0x01C9;
+            ////uint landblockToCloneTo = 0x003C;
+            ////var landblocks = Globals.ACEDatabase.CloneLandblockToAnother(landblockToCloneFrom, landblockToCloneTo);
+
+            var x = new Dictionary<uint, List<ACE.Database.Models.World.LandblockInstance>>();
+
+            foreach (var h in cacheLandblockInstances)
+            {
+                var lbid = h.ObjCellId >> 16;
+                if (!x.TryAdd(lbid, new List<ACE.Database.Models.World.LandblockInstance> { h }))
+                    x[lbid].Add(h);
+            }
+
+            var y = new Dictionary<uint, List<ACE.Database.Models.World.LandblockInstance>>();
+
+            foreach (var h in landblockInstances)
+            {
+                var lbid = h.ObjCellId >> 16;
+                if (!y.TryAdd(lbid, new List<ACE.Database.Models.World.LandblockInstance> { h }))
+                    y[lbid].Add(h);
+            }
+
+            //var deDuped = new List<ACE.Database.Models.World.LandblockInstance>();
+            var deDupedIndex = new HashSet<uint>();
+
+            foreach (var q in landblockInstances)
+            {
+                var lbid = q.ObjCellId >> 16;
+
+                if (!x.ContainsKey(lbid))
+                {
+                    //deDuped.Add(q);
+                    deDupedIndex.Add(lbid);
+                }
+                else
+                {
+                    if (deDupedIndex.Contains(lbid))
+                        continue;
+
+                    var a = x[lbid];
+                    var b = y[lbid];
+
+                    //if (deDupedIndex.Contains(lbid))
+                    //deDuped.Add(q);
+                    //else if (a.Count != b.Count)
+                    if (a.Count != b.Count)
+                    {
+                        //deDuped.Add(q);
+                        deDupedIndex.Add(lbid);
+                    }
+                    else
+                    {
+                        var c = a.FirstOrDefault(l => l.Guid == q.Guid);
+                        var d = b.FirstOrDefault(l => l.Guid == q.Guid);
+
+                        if (c == null && d != null)
+                        {
+                            //deDuped.Add(q);
+                            deDupedIndex.Add(lbid);
+                        }
+                        //else if (c.AnglesW != d.AnglesW || c.AnglesX != d.AnglesX || c.AnglesY != d.AnglesY || c.IsLinkChild != d.IsLinkChild || c.ObjCellId != d.ObjCellId || c.OriginX != d.OriginX || c.OriginY != d.OriginY || c.OriginZ != d.OriginZ || c.WeenieClassId != d.WeenieClassId)
+                        else if (
+                               !ApproximatelyEqual(c.AnglesW, d.AnglesW) //c.AnglesW != d.AnglesW
+                            || !ApproximatelyEqual(c.AnglesX, d.AnglesX) //c.AnglesX != d.AnglesX
+                            || !ApproximatelyEqual(c.AnglesY, d.AnglesY) //c.AnglesY != d.AnglesY
+                            || !ApproximatelyEqual(c.AnglesZ, d.AnglesZ) //c.AnglesZ != d.AnglesZ
+                            || c.IsLinkChild != d.IsLinkChild
+                            || c.ObjCellId != d.ObjCellId
+                            || !ApproximatelyEqual(c.OriginX, d.OriginX) //c.OriginX != d.OriginX
+                            || !ApproximatelyEqual(c.OriginY, d.OriginY) //c.OriginY != d.OriginY
+                            || !ApproximatelyEqual(c.OriginZ, d.OriginZ) //c.OriginZ != d.OriginZ
+                            || c.WeenieClassId != d.WeenieClassId
+                            )
+                        {
+                            //deDuped.Add(q);
+                            deDupedIndex.Add(lbid);
+                        }
+                    }
+                }
+            }
+
+            //deDuped.Clear();
+            deDupedLandblockInstances = new List<ACE.Database.Models.World.LandblockInstance>();
+
+            foreach (var q in landblockInstances)
+            {
+                var lbid = q.ObjCellId >> 16;
+
+                if (deDupedIndex.Contains(lbid))
+                    deDupedLandblockInstances.Add(q);
+            }
         }
 
         private void cmdACE8QuestsParse_Click(object sender, EventArgs e)
@@ -2109,23 +2195,69 @@ namespace PhatACCacheBinParser
                     deDuped.Add(q);
             }
 
-            foreach (var thing in deDuped)
-                thing.LastModified = new DateTime(2021, 11, 1);
+            DeDupeQuests(cacheQuests, results, out var deDupedQuests);
 
-            //QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\SQL\\", true);
-            QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\", true);
+            //foreach (var thing in deDupedQuests)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
+
+            if (deDupedQuests.Count > 0)
+                //QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\SQL\\", true);
+                QuestSQLWriter.WriteFiles(deDupedQuests, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\", true);
+
+            if (usePrevVersion)
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.Quest.Load();
+                var prevQuests = prevContext.Quest.ToList();
+
+                DeDupeQuests(prevQuests, deDupedQuests, out deDupedQuests);
+
+                foreach (var thing in deDupedQuests)
+                    thing.LastModified = GetTimestampForExport();
+            }
+
+            if (deDupedQuests.Count > 0)
+                //QuestSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\SQL\\", true);
+                QuestSQLWriter.WriteFiles(deDupedQuests, Settings.Default["GDLESQLOutputFolder"] + "\\8 QuestDefDB\\", true);
 
             var cacheIds = cacheQuests.Select(x => x.Name.ToUpper()).ToHashSet();
             var spellIds = results.Select(x => x.Name.ToUpper()).ToHashSet();
-            var deDupeIds = deDuped.Select(x => x.Name.ToUpper()).ToHashSet();
+            var deDupeIds = deDupedQuests.Select(x => x.Name.ToUpper()).ToHashSet();
 
             var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
 
-            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} quests exported." + Environment.NewLine;
+            txtACEDatabaseConnector.Text += $" completed. {deDupedQuests.Count:N0} quests exported." + Environment.NewLine;
 
             txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged quests." + Environment.NewLine;
 
             cmdACE8QuestsParse.Enabled = true;
+        }
+
+        private void DeDupeQuests(List<ACE.Database.Models.World.Quest> cacheQuests, List<ACE.Database.Models.World.Quest> quests, out List<ACE.Database.Models.World.Quest> deDupedQuests)
+        {
+            var x = cacheQuests.ToDictionary(z => z.Name.ToLower(), z => z);
+
+            deDupedQuests = new List<ACE.Database.Models.World.Quest>();
+
+            foreach (var q in quests)
+            {
+                var z = q.Name.ToLower();
+
+                if (x.ContainsKey(z))
+                {
+                    if (!q.Name.Equals(x[z].Name))
+                        q.Name = x[z].Name;
+
+                    if (x[z].MaxSolves != q.MaxSolves || x[z].MinDelta != q.MinDelta || x[z].Message != q.Message)
+                        deDupedQuests.Add(q);
+                }
+                else
+                    deDupedQuests.Add(q);
+            }
         }
 
         private void cmdACE9WeeniesParse_Click(object sender, EventArgs e)
@@ -2162,13 +2294,127 @@ namespace PhatACCacheBinParser
                     treasureDeath.Add(item.TreasureType, item);
             }
 
-            var deDupedWeenies = new List<ACE.Database.Models.World.Weenie>();
+            DeDupeWeenies(cacheWeenies, Globals.ACEDatabase.Weenies, out var deDupedWeenies);
 
-            foreach (var weenie in Globals.ACEDatabase.Weenies)
+            //foreach (var thing in deDupedWeenies)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
+
+            if (deDupedWeenies.Count > 0)
+                //WeenieSQLWriter.WriteFiles(Globals.ACEDatabase.Weenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, Globals.ACEDatabase.Weenies.ToDictionary(x => x.ClassId, x => x), true);
+                //WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
+                WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
+
+            if (usePrevVersion)
             {
-                if (weenie.ClassId == 66)
-                    Console.WriteLine();
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
 
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.Weenie.Load();
+                prevContext.WeeniePropertiesBool.Load();
+                prevContext.WeeniePropertiesDID.Load();
+                prevContext.WeeniePropertiesFloat.Load();
+                prevContext.WeeniePropertiesIID.Load();
+                prevContext.WeeniePropertiesInt.Load();
+                prevContext.WeeniePropertiesInt64.Load();
+                prevContext.WeeniePropertiesPosition.Load();
+                prevContext.WeeniePropertiesString.Load();
+                prevContext.WeeniePropertiesAnimPart.Load();
+                prevContext.WeeniePropertiesAttribute.Load();
+                prevContext.WeeniePropertiesAttribute2nd.Load();
+                prevContext.WeeniePropertiesBodyPart.Load();
+                prevContext.WeeniePropertiesBook.Load();
+                prevContext.WeeniePropertiesBookPageData.Load();
+                prevContext.WeeniePropertiesCreateList.Load();
+                prevContext.WeeniePropertiesEmote.Load();
+                prevContext.WeeniePropertiesEmoteAction.Load();
+                prevContext.WeeniePropertiesEventFilter.Load();
+                prevContext.WeeniePropertiesGenerator.Load();
+                prevContext.WeeniePropertiesPalette.Load();
+                prevContext.WeeniePropertiesSkill.Load();
+                prevContext.WeeniePropertiesSpellBook.Load();
+                prevContext.WeeniePropertiesTextureMap.Load();
+                var prevWeenies = prevContext.Weenie.ToList();
+
+                DeDupeWeenies(prevWeenies, deDupedWeenies, out deDupedWeenies);
+
+                foreach (var thing in deDupedWeenies)
+                    thing.LastModified = GetTimestampForExport();
+            }
+
+            if (deDupedWeenies.Count > 0)
+                //WeenieSQLWriter.WriteFiles(Globals.ACEDatabase.Weenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, Globals.ACEDatabase.Weenies.ToDictionary(x => x.ClassId, x => x), true);
+                //WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
+                WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
+
+            var cacheIds = cacheWeenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
+            var spellIds = Globals.ACEDatabase.Weenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
+            var deDupeIds = deDupedWeenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedWeenies.Count:N0} weenies exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged weenies." + Environment.NewLine;
+
+            //var sqlWriter = new ACE.Database.SQLFormatters.World.WeenieSQLWriter();
+            //var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\";
+            //var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+            //foreach (var weenie in deDupedWeenies)
+            //{
+            //    string weenieFileName = sqlWriter.GetDefaultFileName(weenie);
+            //    var weenieSubFolder = sqlWriter.GetDefaultSubfolder(weenie);
+
+            //    var fileInfo = new FileInfo(weenieRoot + weenieSubFolder + weenieFileName);
+            //    var x = Directory.EnumerateFiles(esRoot, weenieFileName[0..5] + "*.es", SearchOption.AllDirectories);
+            //    var y = x?.LastOrDefault();
+
+            //    if (y != null)
+            //    {
+            //        var esFile = new FileInfo(y);
+            //        File.Move(y, weenieRoot + weenieSubFolder + weenieFileName[0..5] + ".es", true);
+            //    }
+            //}
+
+            //DeleteEmptySubdirectories(esRoot);
+
+            cmdACE9WeeniesParse.Enabled = true;
+        }
+
+        private void DeDupeWeenies(List<ACE.Database.Models.World.Weenie> cacheWeenies, List<ACE.Database.Models.World.Weenie> weenies, out List<ACE.Database.Models.World.Weenie> deDupedWeenies)
+        {
+            //var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
+
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+
+            //var results = Globals.ACEDatabase.WorldDatabase.GetAllWeenies();
+            //.AsNoTracking()
+            //.ToList();
+
+            //var aceTreasureWielded = Globals.ACEDatabase.GetAllTreasureWielded();
+            //var aceTreasureDeath = Globals.ACEDatabase.GetAllTreasureDeath();
+
+            //var treasureWielded = new Dictionary<uint, List<ACE.Database.Models.World.TreasureWielded>>();
+            //foreach (var item in aceTreasureWielded)
+            //{
+            //    if (!treasureWielded.ContainsKey(item.TreasureType))
+            //        treasureWielded.Add(item.TreasureType, new List<ACE.Database.Models.World.TreasureWielded>());
+
+            //    treasureWielded[item.TreasureType].Add(item);
+            //}
+            //var treasureDeath = new Dictionary<uint, ACE.Database.Models.World.TreasureDeath>();
+            //foreach (var item in aceTreasureDeath)
+            //{
+            //    if (!treasureDeath.ContainsKey(item.TreasureType))
+            //        treasureDeath.Add(item.TreasureType, item);
+            //}
+
+            //var deDupedWeenies = new List<ACE.Database.Models.World.Weenie>();
+            deDupedWeenies = new List<ACE.Database.Models.World.Weenie>();
+
+            foreach (var weenie in weenies)
+            {
                 var cW = cacheWeenies.FirstOrDefault(i => i.ClassId == weenie.ClassId);
 
                 if (cW == null)
@@ -2177,9 +2423,9 @@ namespace PhatACCacheBinParser
                     continue;
                 }
 
-                var deDupe = false;
-            deDupe:
-                if (deDupe)
+                var notIdentical = false;
+            addToList:
+                if (notIdentical)
                 {
                     deDupedWeenies.Add(weenie);
                     continue;
@@ -2187,8 +2433,8 @@ namespace PhatACCacheBinParser
 
                 if (weenie.WeeniePropertiesAttribute.Count != cW.WeeniePropertiesAttribute.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesAttribute)
@@ -2197,8 +2443,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (
@@ -2207,15 +2453,15 @@ namespace PhatACCacheBinParser
                         || prop.LevelFromCP != cWprop.LevelFromCP
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesAttribute2nd.Count != cW.WeeniePropertiesAttribute2nd.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesAttribute2nd)
@@ -2224,8 +2470,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (
@@ -2235,15 +2481,15 @@ namespace PhatACCacheBinParser
                         || prop.CurrentLevel != cWprop.CurrentLevel
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesBodyPart.Count != cW.WeeniePropertiesBodyPart.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesBodyPart)
@@ -2252,8 +2498,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (
@@ -2284,8 +2530,8 @@ namespace PhatACCacheBinParser
                         || prop.MRF != cWprop.MRF
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
@@ -2293,14 +2539,14 @@ namespace PhatACCacheBinParser
                     || weenie.WeeniePropertiesBook?.MaxNumCharsPerPage != cW.WeeniePropertiesBook?.MaxNumCharsPerPage
                     || weenie.WeeniePropertiesBook?.MaxNumPages != cW.WeeniePropertiesBook?.MaxNumPages)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 if (weenie.WeeniePropertiesBookPageData.Count != cW.WeeniePropertiesBookPageData.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesBookPageData)
@@ -2309,8 +2555,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (
@@ -2321,15 +2567,15 @@ namespace PhatACCacheBinParser
                         || prop.PageText != cWprop.PageText
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesBool.Count != cW.WeeniePropertiesBool.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesBool)
@@ -2338,21 +2584,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Value != cWprop.Value)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesCreateList.Count != cW.WeeniePropertiesCreateList.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 //foreach (var prop in weenie.WeeniePropertiesCreateList.OrderBy(x => x.DestinationType))
@@ -2378,8 +2624,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     var prop = weenie.WeeniePropertiesCreateList.OrderBy(x => x.DestinationType).ElementAt(i);
@@ -2387,21 +2633,21 @@ namespace PhatACCacheBinParser
                     if (
                            prop.DestinationType != cWprop.DestinationType
                         || prop.Palette != cWprop.Palette
-                        || !ApproximatelyEqualEpsilon(prop.Shade, cWprop.Shade, float.Epsilon)
+                        || !ApproximatelyEqual(prop.Shade, cWprop.Shade)
                         || prop.StackSize != cWprop.StackSize
                         || prop.TryToBond != cWprop.TryToBond
                         || prop.WeenieClassId != cWprop.WeenieClassId
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesDID.Count != cW.WeeniePropertiesDID.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesDID)
@@ -2410,21 +2656,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Value != cWprop.Value)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesEmote.Count != cW.WeeniePropertiesEmote.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 //foreach (var prop in weenie.WeeniePropertiesEmote)
@@ -2450,17 +2696,17 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     var prop = weenie.WeeniePropertiesEmote.OrderBy(x => x.Category).ElementAt(i);
 
                     if (
                            prop.Category != cWprop.Category
-                        || !ApproximatelyEqualEpsilon(prop.MaxHealth, cWprop.MaxHealth, float.Epsilon) //prop.MaxHealth != cWprop.MaxHealth
-                        || !ApproximatelyEqualEpsilon(prop.MinHealth, cWprop.MinHealth, float.Epsilon) //prop.MinHealth != cWprop.MinHealth
-                        || !ApproximatelyEqualEpsilon(prop.Probability, cWprop.Probability, float.Epsilon)
+                        || !ApproximatelyEqual(prop.MaxHealth, cWprop.MaxHealth) //prop.MaxHealth != cWprop.MaxHealth
+                        || !ApproximatelyEqual(prop.MinHealth, cWprop.MinHealth) //prop.MinHealth != cWprop.MinHealth
+                        || !ApproximatelyEqual(prop.Probability, cWprop.Probability)
                         || prop.Quest != cWprop.Quest
                         || prop.Style != cWprop.Style
                         || prop.Substyle != cWprop.Substyle
@@ -2469,8 +2715,8 @@ namespace PhatACCacheBinParser
                         || prop.WeeniePropertiesEmoteAction.Count != cWprop.WeeniePropertiesEmoteAction.Count
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     for (var y = 0; y < prop.WeeniePropertiesEmoteAction.Count; y++)
@@ -2479,8 +2725,8 @@ namespace PhatACCacheBinParser
 
                         if (cWaction == null)
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToList;
                         }
 
                         var action = prop.WeeniePropertiesEmoteAction.OrderBy(x => x.Order).ElementAt(y);
@@ -2488,14 +2734,14 @@ namespace PhatACCacheBinParser
                         if (
                               action.Amount != cWaction.Amount
                            || action.Amount64 != cWaction.Amount64
-                           || !ApproximatelyEqualEpsilon(action.AnglesW, cWaction.AnglesW, float.Epsilon)
-                           || !ApproximatelyEqualEpsilon(action.AnglesX, cWaction.AnglesX, float.Epsilon)
-                           || !ApproximatelyEqualEpsilon(action.AnglesY, cWaction.AnglesY, float.Epsilon)
-                           || !ApproximatelyEqualEpsilon(action.AnglesZ, cWaction.AnglesZ, float.Epsilon)
-                           || !ApproximatelyEqualEpsilon(action.Delay, cWaction.Delay, float.Epsilon)
+                           || !ApproximatelyEqual(action.AnglesW, cWaction.AnglesW)
+                           || !ApproximatelyEqual(action.AnglesX, cWaction.AnglesX)
+                           || !ApproximatelyEqual(action.AnglesY, cWaction.AnglesY)
+                           || !ApproximatelyEqual(action.AnglesZ, cWaction.AnglesZ)
+                           || !ApproximatelyEqual(action.Delay, cWaction.Delay)
                            || action.DestinationType != cWaction.DestinationType
                            || action.Display != cWaction.Display
-                           || !ApproximatelyEqualEpsilon(action.Extent, cWaction.Extent, float.Epsilon)
+                           || !ApproximatelyEqual(action.Extent, cWaction.Extent)
                            || action.HeroXP64 != cWaction.HeroXP64
                            || action.Max != cWaction.Max
                            || action.Max64 != cWaction.Max64
@@ -2507,13 +2753,13 @@ namespace PhatACCacheBinParser
                            || action.Motion != cWaction.Motion
                            || action.ObjCellId != cWaction.ObjCellId
                            || action.Order != cWaction.Order
-                           || !ApproximatelyEqualEpsilon(action.OriginX, cWaction.OriginX, float.Epsilon)
-                           || !ApproximatelyEqualEpsilon(action.OriginY, cWaction.OriginY, float.Epsilon)
-                           || !ApproximatelyEqualEpsilon(action.OriginZ, cWaction.OriginZ, float.Epsilon)
+                           || !ApproximatelyEqual(action.OriginX, cWaction.OriginX)
+                           || !ApproximatelyEqual(action.OriginY, cWaction.OriginY)
+                           || !ApproximatelyEqual(action.OriginZ, cWaction.OriginZ)
                            || action.Palette != cWaction.Palette
                            || action.Percent != cWaction.Percent
                            || action.PScript != cWaction.PScript
-                           || !ApproximatelyEqualEpsilon(action.Shade, cWaction.Shade, float.Epsilon)
+                           || !ApproximatelyEqual(action.Shade, cWaction.Shade)
                            || action.SpellId != cWaction.SpellId
                            || action.StackSize != cWaction.StackSize
                            || action.Stat != cWaction.Stat
@@ -2526,16 +2772,16 @@ namespace PhatACCacheBinParser
                            || action.WeenieClassId != cWaction.WeenieClassId
                            )
                         {
-                            deDupe = true;
-                            goto deDupe;
+                            notIdentical = true;
+                            goto addToList;
                         }
                     }
                 }
 
                 if (weenie.WeeniePropertiesEventFilter.Count != cW.WeeniePropertiesEventFilter.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesEventFilter)
@@ -2544,8 +2790,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     //if (prop.Event != cWprop.Event)
@@ -2557,8 +2803,8 @@ namespace PhatACCacheBinParser
 
                 if (weenie.WeeniePropertiesFloat.Count != cW.WeeniePropertiesFloat.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesFloat)
@@ -2567,21 +2813,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
-                    if (!ApproximatelyEqualEpsilon((float)prop.Value, (float)cWprop.Value, float.Epsilon, 3))
+                    if (!ApproximatelyEqual((float)prop.Value, (float)cWprop.Value, 3))
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesGenerator.Count != cW.WeeniePropertiesGenerator.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 //foreach (var prop in weenie.WeeniePropertiesGenerator)
@@ -2609,42 +2855,42 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     var prop = weenie.WeeniePropertiesGenerator.ElementAt(i);
 
                     if (
-                           !ApproximatelyEqualEpsilon(prop.AnglesW, cWprop.AnglesW, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.AnglesX, cWprop.AnglesX, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.AnglesY, cWprop.AnglesY, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.AnglesZ, cWprop.AnglesZ, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.Delay, cWprop.Delay, float.Epsilon)
+                           !ApproximatelyEqual(prop.AnglesW, cWprop.AnglesW)
+                        || !ApproximatelyEqual(prop.AnglesX, cWprop.AnglesX)
+                        || !ApproximatelyEqual(prop.AnglesY, cWprop.AnglesY)
+                        || !ApproximatelyEqual(prop.AnglesZ, cWprop.AnglesZ)
+                        || !ApproximatelyEqual(prop.Delay, cWprop.Delay)
                         || prop.InitCreate != cWprop.InitCreate
                         || prop.MaxCreate != cWprop.MaxCreate
                         || prop.ObjCellId != cWprop.ObjCellId
-                        || !ApproximatelyEqualEpsilon(prop.OriginX, cWprop.OriginX, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.OriginY, cWprop.OriginY, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.OriginZ, cWprop.OriginZ, float.Epsilon)
+                        || !ApproximatelyEqual(prop.OriginX, cWprop.OriginX)
+                        || !ApproximatelyEqual(prop.OriginY, cWprop.OriginY)
+                        || !ApproximatelyEqual(prop.OriginZ, cWprop.OriginZ)
                         || prop.PaletteId != cWprop.PaletteId
-                        || !ApproximatelyEqualEpsilon(prop.Probability, cWprop.Probability, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.Shade, cWprop.Shade, float.Epsilon)
+                        || !ApproximatelyEqual(prop.Probability, cWprop.Probability)
+                        || !ApproximatelyEqual(prop.Shade, cWprop.Shade)
                         || prop.StackSize != cWprop.StackSize
                         || prop.WeenieClassId != cWprop.WeenieClassId
                         || prop.WhenCreate != cWprop.WhenCreate
                         || prop.WhereCreate != cWprop.WhereCreate
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesIID.Count != cW.WeeniePropertiesIID.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesIID)
@@ -2653,21 +2899,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Value != cWprop.Value)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesInt.Count != cW.WeeniePropertiesInt.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesInt)
@@ -2676,21 +2922,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Value != cWprop.Value)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesInt64.Count != cW.WeeniePropertiesInt64.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesInt64)
@@ -2699,21 +2945,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Value != cWprop.Value)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesPosition.Count != cW.WeeniePropertiesPosition.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesPosition)
@@ -2722,30 +2968,30 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (
                         prop.ObjCellId != cWprop.ObjCellId
-                        || !ApproximatelyEqualEpsilon(prop.AnglesW, cWprop.AnglesW, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.AnglesX, cWprop.AnglesX, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.AnglesY, cWprop.AnglesY, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.AnglesZ, cWprop.AnglesZ, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.OriginX, cWprop.OriginX, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.OriginY, cWprop.OriginY, float.Epsilon)
-                        || !ApproximatelyEqualEpsilon(prop.OriginZ, cWprop.OriginZ, float.Epsilon)
+                        || !ApproximatelyEqual(prop.AnglesW, cWprop.AnglesW)
+                        || !ApproximatelyEqual(prop.AnglesX, cWprop.AnglesX)
+                        || !ApproximatelyEqual(prop.AnglesY, cWprop.AnglesY)
+                        || !ApproximatelyEqual(prop.AnglesZ, cWprop.AnglesZ)
+                        || !ApproximatelyEqual(prop.OriginX, cWprop.OriginX)
+                        || !ApproximatelyEqual(prop.OriginY, cWprop.OriginY)
+                        || !ApproximatelyEqual(prop.OriginZ, cWprop.OriginZ)
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesSkill.Count != cW.WeeniePropertiesSkill.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesSkill)
@@ -2754,8 +3000,8 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (
@@ -2767,15 +3013,15 @@ namespace PhatACCacheBinParser
                         || prop.SAC != cWprop.SAC
                         )
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesSpellBook.Count != cW.WeeniePropertiesSpellBook.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesSpellBook)
@@ -2784,21 +3030,21 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Probability != cWprop.Probability)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
 
                 if (weenie.WeeniePropertiesString.Count != cW.WeeniePropertiesString.Count)
                 {
-                    deDupe = true;
-                    goto deDupe;
+                    notIdentical = true;
+                    goto addToList;
                 }
 
                 foreach (var prop in weenie.WeeniePropertiesString)
@@ -2807,82 +3053,20 @@ namespace PhatACCacheBinParser
 
                     if (cWprop == null)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
 
                     if (prop.Value != cWprop.Value)
                     {
-                        deDupe = true;
-                        goto deDupe;
+                        notIdentical = true;
+                        goto addToList;
                     }
                 }
             }
 
-            foreach (var thing in deDupedWeenies)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            //WeenieSQLWriter.WriteFiles(Globals.ACEDatabase.Weenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, Globals.ACEDatabase.Weenies.ToDictionary(x => x.ClassId, x => x), true);
-            //WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
-            WeenieSQLWriter.WriteFiles(deDupedWeenies, Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\", Globals.WeenieNames, treasureWielded, treasureDeath, deDupedWeenies.ToDictionary(x => x.ClassId, x => x), true);
-
-            var cacheIds = cacheWeenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
-            var spellIds = Globals.ACEDatabase.Weenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
-            var deDupeIds = deDupedWeenies.OrderBy(x => x.ClassId).Select(x => x.ClassId).ToHashSet();
-
-            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
-
-            txtACEDatabaseConnector.Text += $" completed. {deDupedWeenies.Count:N0} weenies exported." + Environment.NewLine;
-
-            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged weenies." + Environment.NewLine;
-
-            var sqlWriter = new ACE.Database.SQLFormatters.World.WeenieSQLWriter();
-
-            //sqlWriter.WeenieNames = weenieNames;
-            //sqlWriter.SpellNames = SpellNames.Values;
-            //sqlWriter.PacketOpCodes = PacketOpCodeNames.Values;
-
-            //sqlWriter.TreasureWielded = wieldedTreasure;
-            //sqlWriter.TreasureDeath = deathTreasure;
-
-            //sqlWriter.Weenies = weenies;
-
-            //string fileName = sqlWriter.GetDefaultFileName(input);
-
-            //var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\SQL\\";
-            var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\";
-            var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
-            foreach (var weenie in deDupedWeenies)
-            {
-                string weenieFileName = sqlWriter.GetDefaultFileName(weenie);
-                var weenieSubFolder = sqlWriter.GetDefaultSubfolder(weenie);
-
-                var fileInfo = new FileInfo(weenieRoot + weenieSubFolder + weenieFileName);
-                //var fileName = fileInfo.Name;
-                //var fileDirectory = weenieRoot + weenieFileName[0..^(fileName.Length + 1)];
-
-                //Console.WriteLine(weenieFileName);
-                var x = Directory.EnumerateFiles(esRoot, weenieFileName[0..5] + "*.es", SearchOption.AllDirectories);
-                //if (x.Count() > 0)
-                //    Console.WriteLine(weenieFileName);
-                var y = x?.LastOrDefault();
-
-                if (y != null)
-                {
-                    var esFile = new FileInfo(y);
-                    //File.Move(y, weenieRoot + weenieSubFolder + esFile.Name, true);
-                    File.Move(y, weenieRoot + weenieSubFolder + weenieFileName[0..5] + ".es", true);
-                }
-            }
-
-            //foreach (var directory in Directory.GetDirectories(esRoot))
-            //{
-            //    if (!Directory.EnumerateFileSystemEntries(directory).Any())
-            //        Directory.Delete(directory, false);
-            //}
-            DeleteEmptySubdirectories(esRoot);
-
-            cmdACE9WeeniesParse.Enabled = true;
+            //foreach (var thing in deDupedWeenies)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
         }
 
         public static void DeleteEmptySubdirectories(string parentDirectory)
@@ -2897,29 +3081,279 @@ namespace PhatACCacheBinParser
         {
             cmdACEAMutationParse.Enabled = false;
 
-            //var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
-            var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
-            foreach(var file in esFiles)
+            ////var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
+            //var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
+            //foreach(var file in esFiles)
+            //{
+            //    var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
+            //    //var x = file.Remove(rootToRemove.Length);
+            //    var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
+            //    //Console.WriteLine(x);
+            //    var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+            //    var fileInfo = new FileInfo(currentFileNameAndPath);
+            //    var fileName = fileInfo.Name;
+            //    var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileName.Length + 1)];
+
+            //    Directory.CreateDirectory(fileDirectory);
+
+            //    var outputFile = fileDirectory + "\\" + fileName;
+
+            //    File.Copy(file, outputFile);
+            //}
+
+            if (txtACEExportwcidStart.Text == "0")
             {
-                var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
-                //var x = file.Remove(rootToRemove.Length);
-                var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
-                //Console.WriteLine(x);
-                var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
-                var fileInfo = new FileInfo(currentFileNameAndPath);
-                var fileName = fileInfo.Name;
-                var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileName.Length + 1)];
-
-                Directory.CreateDirectory(fileDirectory);
-
-                var outputFile = fileDirectory + "\\" + fileName;
-
-                File.Copy(file, outputFile);
+                txtACEDatabaseConnector.Text += Environment.NewLine + $"You must specify which PR to mutate from in the Start WCID text box!!!" + Environment.NewLine;
+                cmdACEAMutationParse.Enabled = true;
+                return;
             }
 
-            
+            try
+            {
+                txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab latest build of PR #{txtACEExportwcidStart.Text}... ";
+                //var url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
+                var ci = File.ReadAllText(@"C:\ACE\avt.txt");
+                var url = "https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/history?recordsNumber=20";
+                var request = (HttpWebRequest)WebRequest.Create(url);
+                request.UserAgent = "ACE.Server";
+                request.Headers.Add($"Authorization: Bearer {ci}");
+                request.Headers.Add("Content-Type: application/json");
+
+                var response = request.GetResponse();
+                var reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                var html = reader.ReadToEnd();
+                reader.Close();
+                response.Close();
+
+                dynamic json = JsonConvert.DeserializeObject(html);
+                //Console.WriteLine();
+                var version = "";
+                foreach (var build in json.builds)
+                {
+                    //Console.WriteLine(build);
+                    if (build.pullRequestId == txtACEExportwcidStart.Text)
+                    {
+                        //Console.WriteLine("found pr");                        
+                        version = build.version;
+                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Found PR #{txtACEExportwcidStart.Text}! version = {version}";
+                        break;
+                    }
+                }
+
+                url = $"https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/build/{version}";
+                request = (HttpWebRequest)WebRequest.Create(url);
+
+                response = request.GetResponse();
+                reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                html = reader.ReadToEnd();
+                reader.Close();
+                response.Close();
+                json = JsonConvert.DeserializeObject(html);
+                //Console.WriteLine();
+                var jobId = json.build.jobs[0].jobId;
+                txtACEDatabaseConnector.Text += $" | jobId = {jobId}";
+
+                url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts";
+                request = (HttpWebRequest)WebRequest.Create(url);
+
+                response = request.GetResponse();
+                reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                html = reader.ReadToEnd();
+                reader.Close();
+                response.Close();
+                json = JsonConvert.DeserializeObject(html);
+                //Console.WriteLine();
+                var fileName = "";
+                foreach (var file in json)
+                {
+                    //Console.WriteLine(file[0].Value);
+                    //Console.WriteLine(file[1].Value);
+                    if (file.name == "World Database")
+                    {
+                        //Console.WriteLine("found pr");
+                        //version = build.version;
+                        fileName = file.fileName;
+                        txtACEDatabaseConnector.Text += $" | fileName = {fileName}";
+                        break;
+                    }
+                }
+
+                url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts/{fileName}";
+
+                DownloadAndImportDatabase(url, fileName, "ace_world");
+
+                txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database... ";
+                url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
+                request.Headers.Clear();
+                request = (HttpWebRequest)WebRequest.Create(url);
+                request.UserAgent = "ACE.Server";
+
+                response = request.GetResponse();
+                reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                html = reader.ReadToEnd();
+                reader.Close();
+                response.Close();
+
+                json = JsonConvert.DeserializeObject(html);
+                string tag = json[0].tag_name;
+                string dbURL = json[0].assets[0].browser_download_url;
+                string dbFileName = json[0].assets[0].name;
+
+                txtACEDatabaseConnector.Text += Environment.NewLine + $"Found release {tag}!";
+
+                DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
+
+                txtACEDatabaseConnector.Text += Environment.NewLine + $"Clearing output directory... ";
+                var di = new DirectoryInfo((string)Settings.Default["GDLESQLOutputFolder"]);
+                foreach (var file in di.EnumerateFiles())
+                {
+                    file.Delete();
+                }
+                foreach (var dir in di.EnumerateDirectories())
+                {
+                    dir.Delete(true);
+                }
+                txtACEDatabaseConnector.Text += "Cleared!" + Environment.NewLine;
+
+                txtACEDatabaseConnector.Text += Environment.NewLine + "Starting data normalization and updating last_Modified field for release ...";
+
+                //var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
+                var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
+                foreach (var file in esFiles)
+                {
+                    var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
+                    //var x = file.Remove(rootToRemove.Length);
+                    var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
+                    //Console.WriteLine(x);
+                    var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                    var fileInfo = new FileInfo(currentFileNameAndPath);
+                    var fileNameES = fileInfo.Name;
+                    var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileNameES.Length + 1)];
+
+                    Directory.CreateDirectory(fileDirectory);
+
+                    var outputFile = fileDirectory + "\\" + fileNameES;
+
+                    File.Copy(file, outputFile);
+                }
+
+                usePrevVersion = true;
+                writeDeletedFiles = true;
+                cmdACE9WeeniesParse_Click(sender, e);
+                cmdACE1RegionsParse_Click(sender, e);
+                cmdACE2SpellsParse_Click(sender, e);
+                cmdACE3TreasureParse_Click(sender, e);
+                cmdACE4CraftingParse_Click(sender, e);
+                cmdACE5HousingParse_Click(sender, e);
+                cmdACE6LandblocksParse_Click(sender, e);
+                cmdACE8QuestsParse_Click(sender, e);
+                cmdACEBEventsParse_Click(sender, e);
+                usePrevVersion = false;
+                writeDeletedFiles = false;
+
+                txtACEDatabaseConnector.Text += "data normalization and updates complete!" + Environment.NewLine;
+            }
+            catch
+            {
+
+            }
 
             cmdACEAMutationParse.Enabled = true;
+        }
+
+        private void DownloadAndImportDatabase(string dbURL, string dbFileName, string dbName)
+        {
+            //Console.WriteLine();
+            txtACEDatabaseConnector.Text += Environment.NewLine;
+
+            //if (IsRunningInContainer)
+            //{
+            //    Console.WriteLine(" ");
+            //    Console.WriteLine("This process will take a while, depending on many factors, and may look stuck while reading and importing the world database, please be patient! ");
+            //    Console.WriteLine(" ");
+            //}
+
+            //Console.Write($"Downloading {dbFileName} .... ");
+            txtACEDatabaseConnector.Text += $"Downloading {dbFileName} .... ";
+            using (var client = new WebClient())
+            {
+                try
+                {
+                    client.DownloadFile(dbURL, dbFileName);
+                }
+                catch
+                {
+                    //Console.Write($"Download for {dbFileName} failed!");
+                    txtACEDatabaseConnector.Text += $"Download for {dbFileName} failed!";
+                    return;
+                }
+            }
+            //Console.WriteLine("download complete!");
+            txtACEDatabaseConnector.Text += "download complete!" + Environment.NewLine;
+
+            //Console.Write($"Extracting {dbFileName} .... ");
+            txtACEDatabaseConnector.Text += $"Extracting {dbFileName} .... ";
+            ZipFile.ExtractToDirectory(dbFileName, ".", true);
+            //Console.WriteLine("extraction complete!");
+            txtACEDatabaseConnector.Text += "extraction complete!" + Environment.NewLine;
+            //Console.Write($"Deleting {dbFileName} .... ");
+            txtACEDatabaseConnector.Text += $"Deleting {dbFileName} .... ";
+            File.Delete(dbFileName);
+            //Console.WriteLine("Deleted!");
+            txtACEDatabaseConnector.Text += "Deleted!" + Environment.NewLine;
+
+            var sqlFile = dbFileName.Substring(0, dbFileName.Length - 4);
+            //Console.Write($"Importing {sqlFile} into SQL server at {ConfigManager.Config.MySql.World.Host}:{ConfigManager.Config.MySql.World.Port} (This will take a while, please be patient) .... ");
+            txtACEDatabaseConnector.Text += $"Importing {sqlFile} into SQL server at {Settings.Default.ACEWorldServer}:{Settings.Default.ACEWorldPort} as {dbName} (This will take a while, please be patient) .... ";
+            using (var sr = File.OpenText(sqlFile))
+            {
+                //var sqlConnect = new MySql.Data.MySqlClient.MySqlConnection($"server={ConfigManager.Config.MySql.World.Host};port={ConfigManager.Config.MySql.World.Port};user={ConfigManager.Config.MySql.World.Username};password={ConfigManager.Config.MySql.World.Password};DefaultCommandTimeout=120");
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                var sqlConnect = new MySql.Data.MySqlClient.MySqlConnection($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};DefaultCommandTimeout=120");
+
+                var line = string.Empty;
+                var completeSQLline = string.Empty;
+
+                //var dbname = ConfigManager.Config.MySql.World.Database;
+
+                while ((line = sr.ReadLine()) != null)
+                {
+                    line = line.Replace("ace_world", dbName);
+                    //do minimal amount of work here
+                    if (line.EndsWith(";"))
+                    {
+                        completeSQLline += line + Environment.NewLine;
+
+                        var script = new MySql.Data.MySqlClient.MySqlScript(sqlConnect, completeSQLline);
+                        try
+                        {
+                            script.StatementExecuted += new MySql.Data.MySqlClient.MySqlStatementExecutedEventHandler(OnStatementExecutedOutputDot);
+                            var count = script.Execute();
+                        }
+                        catch (MySql.Data.MySqlClient.MySqlException)
+                        {
+
+                        }
+                        completeSQLline = string.Empty;
+                    }
+                    else
+                        completeSQLline += line + Environment.NewLine;
+                }
+            }
+            //Console.WriteLine(" complete!");
+            txtACEDatabaseConnector.Text += " complete!" + Environment.NewLine;
+
+            //Console.Write($"Deleting {sqlFile} .... ");
+            txtACEDatabaseConnector.Text += $"Deleting {sqlFile} .... ";
+            File.Delete(sqlFile);
+            //Console.WriteLine("Deleted!");
+            txtACEDatabaseConnector.Text += "Deleted!" + Environment.NewLine;
+        }
+
+        private void OnStatementExecutedOutputDot(object sender, MySql.Data.MySqlClient.MySqlScriptEventArgs args)
+        {
+            //Console.Write(".");
+            txtACEDatabaseConnector.Text += ".";
         }
 
         private void cmdACEBEventsParse_Click(object sender, EventArgs e)
@@ -2934,15 +3368,57 @@ namespace PhatACCacheBinParser
                     .AsNoTracking()
                     .ToList();
 
+            DeDupeEvents(cacheEvents, results, out var deDupedEvents);
+
+            //foreach (var thing in deDuped)
+            //    thing.LastModified = new DateTime(2021, 11, 1);
+
+            if (deDupedEvents.Count > 0)
+                //EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\SQL\\", true);
+                EventSQLWriter.WriteFiles(deDupedEvents, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\", true);
+
+            if (usePrevVersion)
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
+                //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+
+                var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
+                prevContext.Event.Load();
+                var prevEvents = prevContext.Event.ToList();
+
+                DeDupeEvents(prevEvents, deDupedEvents, out deDupedEvents);
+
+                foreach (var thing in deDupedEvents)
+                    thing.LastModified = GetTimestampForExport();
+            }
+
+            if (deDupedEvents.Count > 0)
+                //EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\SQL\\", true);
+                EventSQLWriter.WriteFiles(deDupedEvents, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\", true);
+
+            var cacheIds = cacheEvents.Select(x => x.Name.ToUpper()).ToHashSet();
+            var spellIds = results.Select(x => x.Name.ToUpper()).ToHashSet();
+            var deDupeIds = deDupedEvents.Select(x => x.Name.ToUpper()).ToHashSet();
+
+            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
+
+            txtACEDatabaseConnector.Text += $" completed. {deDupedEvents.Count:N0} events exported." + Environment.NewLine;
+
+            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged events." + Environment.NewLine;
+
+            cmdACEBEventsParse.Enabled = true;
+        }
+
+        private void DeDupeEvents(List<ACE.Database.Models.World.Event> cacheEvents, List<ACE.Database.Models.World.Event> events, out List<ACE.Database.Models.World.Event> deDupedEvents)
+        {
             var x = cacheEvents.ToDictionary(z => z.Name.ToLower(), z => z);
 
-            var deDuped = new List<ACE.Database.Models.World.Event>();
+            deDupedEvents = new List<ACE.Database.Models.World.Event>();
 
-            foreach (var q in results)
+            foreach (var q in events)
             {
                 var z = q.Name.ToLower();
-
-                //q.LastModified = DateTime.Now;
 
                 if (x.ContainsKey(z))
                 {
@@ -2950,29 +3426,11 @@ namespace PhatACCacheBinParser
                         q.Name = x[z].Name;
 
                     if (x[z].StartTime != q.StartTime || x[z].EndTime != q.EndTime || x[z].State != q.State)
-                        deDuped.Add(q);
+                        deDupedEvents.Add(q);
                 }
                 else
-                    deDuped.Add(q);
+                    deDupedEvents.Add(q);
             }
-
-            foreach (var thing in deDuped)
-                thing.LastModified = new DateTime(2021, 11, 1);
-
-            //EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\SQL\\", true);
-            EventSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\B GameEventDefDB\\", true);
-
-            var cacheIds = cacheEvents.Select(x => x.Name.ToUpper()).ToHashSet();
-            var spellIds = results.Select(x => x.Name.ToUpper()).ToHashSet();
-            var deDupeIds = deDuped.Select(x => x.Name.ToUpper()).ToHashSet();
-
-            var deletedIds = cacheIds.Except(spellIds).Except(deDupeIds).ToHashSet();
-
-            txtACEDatabaseConnector.Text += $" completed. {deDuped.Count:N0} events exported." + Environment.NewLine;
-
-            txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged events." + Environment.NewLine;
-
-            cmdACEBEventsParse.Enabled = true;
         }
 
 
