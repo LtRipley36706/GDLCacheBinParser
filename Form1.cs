@@ -2047,6 +2047,8 @@ namespace PhatACCacheBinParser
                 //LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
                 LandblockSQLWriter.WriteFiles(deDupedLandblockInstances, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\", Globals.WeenieNames, true);
 
+            deDupeLbs = deDupedLandblockInstances.GroupBy(x => (x.ObjCellId >> 16)).Select(x => (x.First().ObjCellId >> 16)).ToHashSet();
+
             txtACEDatabaseConnector.Text += $" completed. {deDupeLbs.Count:N0} landblocks exported." + Environment.NewLine;
 
             //txtACEDatabaseConnector.Text += $"Skipped {cachelandblockInstances.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count - deDuped.GroupBy(x => x.Landblock).Select(g => g.First()).ToList().Count:N0} unchanged landblocks." + Environment.NewLine;
@@ -2273,8 +2275,8 @@ namespace PhatACCacheBinParser
             Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
 
             //var results = Globals.ACEDatabase.WorldDatabase.GetAllWeenies();
-                    //.AsNoTracking()
-                    //.ToList();
+            //.AsNoTracking()
+            //.ToList();
 
             var aceTreasureWielded = Globals.ACEDatabase.GetAllTreasureWielded();
             var aceTreasureDeath = Globals.ACEDatabase.GetAllTreasureDeath();
@@ -2293,6 +2295,8 @@ namespace PhatACCacheBinParser
                 if (!treasureDeath.ContainsKey(item.TreasureType))
                     treasureDeath.Add(item.TreasureType, item);
             }
+
+            //CleanupWeenies(Globals.ACEDatabase.Weenies);
 
             DeDupeWeenies(cacheWeenies, Globals.ACEDatabase.Weenies, out var deDupedWeenies);
 
@@ -2337,7 +2341,33 @@ namespace PhatACCacheBinParser
                 prevContext.WeeniePropertiesTextureMap.Load();
                 var prevWeenies = prevContext.Weenie.ToList();
 
+                //CleanupWeenies(prevWeenies);
+
                 DeDupeWeenies(prevWeenies, deDupedWeenies, out deDupedWeenies);
+
+                //foreach (var wo in deDupedWeenies)
+                //{
+                //    var xx = cacheWeenies.FirstOrDefault(z => z.ClassId == wo.ClassId);
+
+                //    wo.WeeniePropertiesPosition.Clear();
+                //    foreach (var pos in xx.WeeniePropertiesPosition)
+                //    {
+                //        wo.WeeniePropertiesPosition.Add(new ACE.Database.Models.World.WeeniePropertiesPosition { AnglesW = pos.AnglesW, AnglesX = pos.AnglesX, AnglesY = pos.AnglesY, AnglesZ = pos.AnglesZ, ObjCellId = pos.ObjCellId, ObjectId = pos.ObjectId, OriginX = pos.OriginX, OriginY = pos.OriginY, OriginZ = pos.OriginZ, PositionType = pos.PositionType });
+                //    }
+                //}
+
+                //DeDupeWeenies(cacheWeenies, deDupedWeenies, out deDupedWeenies);
+
+                //foreach (var wo in deDupedWeenies)
+                //{
+                //    var xx = Globals.ACEDatabase.Weenies.FirstOrDefault(z => z.ClassId == wo.ClassId);
+
+                //    wo.WeeniePropertiesPosition.Clear();
+                //    foreach (var pos in xx.WeeniePropertiesPosition)
+                //    {
+                //        wo.WeeniePropertiesPosition.Add(new ACE.Database.Models.World.WeeniePropertiesPosition { AnglesW = pos.AnglesW, AnglesX = pos.AnglesX, AnglesY = pos.AnglesY, AnglesZ = pos.AnglesZ, ObjCellId = pos.ObjCellId, ObjectId = pos.ObjectId, OriginX = pos.OriginX, OriginY = pos.OriginY, OriginZ = pos.OriginZ, PositionType = pos.PositionType });
+                //    }
+                //}
 
                 foreach (var thing in deDupedWeenies)
                     thing.LastModified = GetTimestampForExport();
@@ -2380,6 +2410,33 @@ namespace PhatACCacheBinParser
             //DeleteEmptySubdirectories(esRoot);
 
             cmdACE9WeeniesParse.Enabled = true;
+        }
+
+        private static void CleanupWeenies(List<ACE.Database.Models.World.Weenie> weenies)
+        {
+            foreach (var weenie in weenies)
+            {
+                if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Portal || weenie.Type == (int)ACE.Entity.Enum.WeenieType.HousePortal)
+                {
+                    if (weenie.ClassId > 31034)
+                        continue;
+
+                    var attackable = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.Attackable);
+                    var gravityStatus = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.GravityStatus);
+                    var portalShowDestination = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.PortalShowDestination);
+
+                    if (attackable != null && attackable.Value)
+                        weenie.WeeniePropertiesBool.Remove(attackable);
+
+                    if (gravityStatus != null && gravityStatus.Value)
+                        weenie.WeeniePropertiesBool.Remove(gravityStatus);
+
+                    if (portalShowDestination != null && portalShowDestination.Value)
+                        weenie.WeeniePropertiesBool.Remove(portalShowDestination);
+                }
+                else
+                    continue;
+            }
         }
 
         private void DeDupeWeenies(List<ACE.Database.Models.World.Weenie> cacheWeenies, List<ACE.Database.Models.World.Weenie> weenies, out List<ACE.Database.Models.World.Weenie> deDupedWeenies)
@@ -3077,6 +3134,8 @@ namespace PhatACCacheBinParser
             });
         }
 
+        private bool baselineExport = false;
+
         private void cmdACEAMutationParse_Click(object sender, EventArgs e)
         {
             cmdACEAMutationParse.Enabled = false;
@@ -3101,7 +3160,7 @@ namespace PhatACCacheBinParser
             //    File.Copy(file, outputFile);
             //}
 
-            if (txtACEExportwcidStart.Text == "0")
+            if (!baselineExport && txtACEExportwcidStart.Text == "0")
             {
                 txtACEDatabaseConnector.Text += Environment.NewLine + $"You must specify which PR to mutate from in the Start WCID text box!!!" + Environment.NewLine;
                 cmdACEAMutationParse.Enabled = true;
@@ -3110,112 +3169,127 @@ namespace PhatACCacheBinParser
 
             try
             {
-                txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab latest build of PR #{txtACEExportwcidStart.Text}... ";
-                //var url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
-                var ci = File.ReadAllText(@"C:\ACE\avt.txt");
-                var url = "https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/history?recordsNumber=20";
-                var request = (HttpWebRequest)WebRequest.Create(url);
-                request.UserAgent = "ACE.Server";
-                request.Headers.Add($"Authorization: Bearer {ci}");
-                request.Headers.Add("Content-Type: application/json");
-
-                var response = request.GetResponse();
-                var reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                var html = reader.ReadToEnd();
-                reader.Close();
-                response.Close();
-
-                dynamic json = JsonConvert.DeserializeObject(html);
-                //Console.WriteLine();
-                var version = "";
-                foreach (var build in json.builds)
+                if (!baselineExport)
                 {
-                    //Console.WriteLine(build);
-                    if (build.pullRequestId == txtACEExportwcidStart.Text)
+                    txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab latest build of PR #{txtACEExportwcidStart.Text}... ";
+                    //var url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
+                    var ci = File.ReadAllText(@"C:\ACE\avt.txt");
+                    var url = "https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/history?recordsNumber=20";
+                    var request = (HttpWebRequest)WebRequest.Create(url);
+                    request.UserAgent = "ACE.Server";
+                    request.Headers.Add($"Authorization: Bearer {ci}");
+                    request.Headers.Add("Content-Type: application/json");
+
+                    var response = request.GetResponse();
+                    var reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                    var html = reader.ReadToEnd();
+                    reader.Close();
+                    response.Close();
+
+                    dynamic json = JsonConvert.DeserializeObject(html);
+                    //Console.WriteLine();
+                    var version = "";
+                    foreach (var build in json.builds)
                     {
-                        //Console.WriteLine("found pr");                        
-                        version = build.version;
-                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Found PR #{txtACEExportwcidStart.Text}! version = {version}";
-                        break;
+                        //Console.WriteLine(build);
+                        if (build.pullRequestId == txtACEExportwcidStart.Text)
+                        {
+                            //Console.WriteLine("found pr");                        
+                            version = build.version;
+                            txtACEDatabaseConnector.Text += Environment.NewLine + $"Found PR #{txtACEExportwcidStart.Text}! version = {version}";
+                            break;
+                        }
                     }
-                }
 
-                url = $"https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/build/{version}";
-                request = (HttpWebRequest)WebRequest.Create(url);
-
-                response = request.GetResponse();
-                reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                html = reader.ReadToEnd();
-                reader.Close();
-                response.Close();
-                json = JsonConvert.DeserializeObject(html);
-                //Console.WriteLine();
-                var jobId = json.build.jobs[0].jobId;
-                txtACEDatabaseConnector.Text += $" | jobId = {jobId}";
-
-                url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts";
-                request = (HttpWebRequest)WebRequest.Create(url);
-
-                response = request.GetResponse();
-                reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                html = reader.ReadToEnd();
-                reader.Close();
-                response.Close();
-                json = JsonConvert.DeserializeObject(html);
-                //Console.WriteLine();
-                var fileName = "";
-                foreach (var file in json)
-                {
-                    //Console.WriteLine(file[0].Value);
-                    //Console.WriteLine(file[1].Value);
-                    if (file.name == "World Database")
+                    if (version == "")
                     {
-                        //Console.WriteLine("found pr");
-                        //version = build.version;
-                        fileName = file.fileName;
-                        txtACEDatabaseConnector.Text += $" | fileName = {fileName}";
-                        break;
+                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Unable to find PR #{txtACEExportwcidStart.Text}!" + Environment.NewLine;
+                        return;
                     }
+
+                    url = $"https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/build/{version}";
+                    request = (HttpWebRequest)WebRequest.Create(url);
+
+                    response = request.GetResponse();
+                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                    html = reader.ReadToEnd();
+                    reader.Close();
+                    response.Close();
+                    json = JsonConvert.DeserializeObject(html);
+                    //Console.WriteLine();
+                    var jobId = json.build.jobs[0].jobId;
+                    txtACEDatabaseConnector.Text += $" | jobId = {jobId}";
+
+                    url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts";
+                    request = (HttpWebRequest)WebRequest.Create(url);
+
+                    response = request.GetResponse();
+                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                    html = reader.ReadToEnd();
+                    reader.Close();
+                    response.Close();
+                    json = JsonConvert.DeserializeObject(html);
+                    //Console.WriteLine();
+                    var fileName = "";
+                    foreach (var file in json)
+                    {
+                        //Console.WriteLine(file[0].Value);
+                        //Console.WriteLine(file[1].Value);
+                        if (file.name == "World Database")
+                        {
+                            //Console.WriteLine("found pr");
+                            //version = build.version;
+                            fileName = file.fileName;
+                            txtACEDatabaseConnector.Text += $" | fileName = {fileName}";
+                            break;
+                        }
+                    }
+
+                    if (fileName == "")
+                    {
+                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Unable to find World Database attached to PR #{txtACEExportwcidStart.Text}!" + Environment.NewLine;
+                        return;
+                    }
+
+                    url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts/{fileName}";
+
+                    DownloadAndImportDatabase(url, fileName, "ace_world");
+
+                    txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database... ";
+                    url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
+                    request.Headers.Clear();
+                    request = (HttpWebRequest)WebRequest.Create(url);
+                    request.UserAgent = "ACE.Server";
+
+                    response = request.GetResponse();
+                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                    html = reader.ReadToEnd();
+                    reader.Close();
+                    response.Close();
+
+                    json = JsonConvert.DeserializeObject(html);
+                    string tag = json[0].tag_name;
+                    string dbURL = json[0].assets[0].browser_download_url;
+                    string dbFileName = json[0].assets[0].name;
+
+                    txtACEDatabaseConnector.Text += Environment.NewLine + $"Found release {tag}!";
+
+                    DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
+
+                    txtACEDatabaseConnector.Text += Environment.NewLine + $"Clearing output directory... ";
+                    var di = new DirectoryInfo((string)Settings.Default["GDLESQLOutputFolder"]);
+                    foreach (var file in di.EnumerateFiles())
+                    {
+                        file.Delete();
+                    }
+                    foreach (var dir in di.EnumerateDirectories())
+                    {
+                        dir.Delete(true);
+                    }
+                    txtACEDatabaseConnector.Text += "Cleared!" + Environment.NewLine;
+
+                    txtACEDatabaseConnector.Text += Environment.NewLine + "Starting data normalization and updating last_Modified field for release ...";
                 }
-
-                url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts/{fileName}";
-
-                DownloadAndImportDatabase(url, fileName, "ace_world");
-
-                txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database... ";
-                url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
-                request.Headers.Clear();
-                request = (HttpWebRequest)WebRequest.Create(url);
-                request.UserAgent = "ACE.Server";
-
-                response = request.GetResponse();
-                reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                html = reader.ReadToEnd();
-                reader.Close();
-                response.Close();
-
-                json = JsonConvert.DeserializeObject(html);
-                string tag = json[0].tag_name;
-                string dbURL = json[0].assets[0].browser_download_url;
-                string dbFileName = json[0].assets[0].name;
-
-                txtACEDatabaseConnector.Text += Environment.NewLine + $"Found release {tag}!";
-
-                DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
-
-                txtACEDatabaseConnector.Text += Environment.NewLine + $"Clearing output directory... ";
-                var di = new DirectoryInfo((string)Settings.Default["GDLESQLOutputFolder"]);
-                foreach (var file in di.EnumerateFiles())
-                {
-                    file.Delete();
-                }
-                foreach (var dir in di.EnumerateDirectories())
-                {
-                    dir.Delete(true);
-                }
-                txtACEDatabaseConnector.Text += "Cleared!" + Environment.NewLine;
-
-                txtACEDatabaseConnector.Text += Environment.NewLine + "Starting data normalization and updating last_Modified field for release ...";
 
                 //var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
                 var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
@@ -3237,19 +3311,22 @@ namespace PhatACCacheBinParser
                     File.Copy(file, outputFile);
                 }
 
-                usePrevVersion = true;
-                writeDeletedFiles = true;
-                cmdACE9WeeniesParse_Click(sender, e);
-                cmdACE1RegionsParse_Click(sender, e);
-                cmdACE2SpellsParse_Click(sender, e);
-                cmdACE3TreasureParse_Click(sender, e);
-                cmdACE4CraftingParse_Click(sender, e);
-                cmdACE5HousingParse_Click(sender, e);
-                cmdACE6LandblocksParse_Click(sender, e);
-                cmdACE8QuestsParse_Click(sender, e);
-                cmdACEBEventsParse_Click(sender, e);
-                usePrevVersion = false;
-                writeDeletedFiles = false;
+                if (!baselineExport)
+                {
+                    usePrevVersion = true;
+                    writeDeletedFiles = true;
+                    cmdACE9WeeniesParse_Click(sender, e);
+                    cmdACE1RegionsParse_Click(sender, e);
+                    cmdACE2SpellsParse_Click(sender, e);
+                    cmdACE3TreasureParse_Click(sender, e);
+                    cmdACE4CraftingParse_Click(sender, e);
+                    cmdACE5HousingParse_Click(sender, e);
+                    cmdACE6LandblocksParse_Click(sender, e);
+                    cmdACE8QuestsParse_Click(sender, e);
+                    cmdACEBEventsParse_Click(sender, e);
+                    usePrevVersion = false;
+                    writeDeletedFiles = false;
+                }
 
                 txtACEDatabaseConnector.Text += "data normalization and updates complete!" + Environment.NewLine;
             }
