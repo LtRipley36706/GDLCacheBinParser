@@ -2040,7 +2040,12 @@ namespace PhatACCacheBinParser
                 DeDupeLandblocks(prevLandblocks, deDupedLandblockInstances, out deDupedLandblockInstances);
 
                 foreach (var thing in deDupedLandblockInstances)
+                {
                     thing.LastModified = GetTimestampForExport();
+
+                    foreach (var subthing in thing.LandblockInstanceLink)
+                        subthing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedLandblockInstances.Count > 0)
