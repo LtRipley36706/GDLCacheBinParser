@@ -2267,9 +2267,39 @@ namespace PhatACCacheBinParser
             }
         }
 
+        private bool captureAndResortESfiles = true;
+
         private void cmdACE9WeeniesParse_Click(object sender, EventArgs e)
         {
             cmdACE9WeeniesParse.Enabled = false;
+
+            if (captureAndResortESfiles)
+            {
+                txtACEDatabaseConnector.Text += Environment.NewLine + "Capturing ES files from patches repo on disk... ";
+
+                //var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
+                var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
+                foreach (var file in esFiles)
+                {
+                    var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
+                    //var x = file.Remove(rootToRemove.Length);
+                    var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
+                    //Console.WriteLine(x);
+                    //var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                    var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\D EmoteScript\\";
+                    var fileInfo = new FileInfo(currentFileNameAndPath);
+                    var fileNameES = fileInfo.Name;
+                    var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileNameES.Length + 1)];
+
+                    Directory.CreateDirectory(fileDirectory);
+
+                    var outputFile = fileDirectory + "\\" + fileNameES;
+
+                    File.Copy(file, outputFile);
+                }
+
+                txtACEDatabaseConnector.Text += $"completed. Captured {esFiles.Count():N0} EmoteScript files." + Environment.NewLine;
+            }
 
             cmdACEDatabaseCacheAllWeenies_Click(sender, e);
 
@@ -2277,7 +2307,7 @@ namespace PhatACCacheBinParser
 
             var cacheWeenies = Globals.CacheBin.WeenieDefaults.ConvertToACE();
 
-            Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
+            //Globals.ACEDatabase.ReCacheAllWeeniesInParallel();
 
             //var results = Globals.ACEDatabase.WorldDatabase.GetAllWeenies();
             //.AsNoTracking()
@@ -2301,7 +2331,8 @@ namespace PhatACCacheBinParser
                     treasureDeath.Add(item.TreasureType, item);
             }
 
-            //CleanupWeenies(Globals.ACEDatabase.Weenies);
+            if (!usePrevVersion)
+                CleanupWeenies(Globals.ACEDatabase.Weenies);
 
             DeDupeWeenies(cacheWeenies, Globals.ACEDatabase.Weenies, out var deDupedWeenies);
 
@@ -2374,6 +2405,10 @@ namespace PhatACCacheBinParser
                 //    }
                 //}
 
+                //txtACEDatabaseConnector.Text += Environment.NewLine + "Cleaning up weenies... ";
+                CleanupWeenies(deDupedWeenies);
+                //txtACEDatabaseConnector.Text += $" completed." + Environment.NewLine;
+
                 foreach (var thing in deDupedWeenies)
                     thing.LastModified = GetTimestampForExport();
             }
@@ -2393,26 +2428,71 @@ namespace PhatACCacheBinParser
 
             txtACEDatabaseConnector.Text += $"Skipped {cacheIds.Except(deDupeIds).Except(deletedIds).Count():N0} unchanged weenies." + Environment.NewLine;
 
-            //var sqlWriter = new ACE.Database.SQLFormatters.World.WeenieSQLWriter();
-            //var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\";
-            //var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
-            //foreach (var weenie in deDupedWeenies)
-            //{
-            //    string weenieFileName = sqlWriter.GetDefaultFileName(weenie);
-            //    var weenieSubFolder = sqlWriter.GetDefaultSubfolder(weenie);
+            if (captureAndResortESfiles)
+            {
+                txtACEDatabaseConnector.Text += Environment.NewLine + "Re-linking captured ES files... ";
 
-            //    var fileInfo = new FileInfo(weenieRoot + weenieSubFolder + weenieFileName);
-            //    var x = Directory.EnumerateFiles(esRoot, weenieFileName[0..5] + "*.es", SearchOption.AllDirectories);
-            //    var y = x?.LastOrDefault();
+                var sqlWriter = new ACE.Database.SQLFormatters.World.WeenieSQLWriter();
+                var weenieRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\";
+                //var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\D EmoteScript\\9 WeenieDefaults\\";
+                var esLink = 0;
+                //foreach (var weenie in deDupedWeenies)
+                foreach (var weenie in Globals.ACEDatabase.Weenies)
+                {
+                    string weenieFileName = sqlWriter.GetDefaultFileName(weenie);
+                    var weenieSubFolder = sqlWriter.GetDefaultSubfolder(weenie);
 
-            //    if (y != null)
-            //    {
-            //        var esFile = new FileInfo(y);
-            //        File.Move(y, weenieRoot + weenieSubFolder + weenieFileName[0..5] + ".es", true);
-            //    }
-            //}
+                    var fileInfo = new FileInfo(weenieRoot + weenieSubFolder + weenieFileName);
+                    var x = Directory.EnumerateFiles(esRoot, weenieFileName[0..5] + "*.es", SearchOption.AllDirectories);
+                    var y = x?.LastOrDefault();
 
-            //DeleteEmptySubdirectories(esRoot);
+                    if (y != null)
+                    {
+                        var esFile = new FileInfo(y);
+                        File.Move(y, weenieRoot + weenieSubFolder + weenieFileName[0..5] + ".es", true);
+                        esLink++;
+                    }
+                }
+
+                DeleteEmptySubdirectories(esRoot);
+
+                var esRoot2 = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                var esRoot3 = Settings.Default["GDLESQLOutputFolder"] + "\\D EmoteScript\\C EmoteScript\\";                
+                var esRoot4 = Settings.Default["GDLESQLOutputFolder"] + "\\D EmoteScript\\";
+                var unmatchedESFiles = Directory.EnumerateFiles(esRoot3, "*.es", SearchOption.AllDirectories);
+                var esUnLink = 0;
+                foreach (var file in unmatchedESFiles)
+                {
+                    //var esFile = new FileInfo(file);
+                    //File.Move(file, esRoot2 + esFile.Name, true);
+
+                    //var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
+                    var rootToRemove = esRoot3;
+                    //var x = file.Remove(rootToRemove.Length);
+                    var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
+                    //Console.WriteLine(x);
+                    //var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                    var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                    var fileInfo = new FileInfo(currentFileNameAndPath);
+                    var fileNameES = fileInfo.Name;
+                    var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileNameES.Length + 1)];
+
+                    Directory.CreateDirectory(fileDirectory);
+
+                    var outputFile = fileDirectory + "\\" + fileNameES;
+
+                    File.Move(file, outputFile, true);
+                    esUnLink++;
+                }
+
+                DeleteEmptySubdirectories(esRoot4);
+
+                if (!Directory.EnumerateFiles(esRoot4).Any())
+                    Directory.Delete(esRoot4, true);
+
+                txtACEDatabaseConnector.Text += $" completed. {esLink:N0} EmoteScript files re-linked, and {esUnLink:N0} unlinked EmoteScript files for a combined total of {esLink + esUnLink:N0} EmoteScript files saved." + Environment.NewLine;
+            }
 
             cmdACE9WeeniesParse.Enabled = true;
         }
@@ -2421,26 +2501,266 @@ namespace PhatACCacheBinParser
         {
             foreach (var weenie in weenies)
             {
+                var defaultCombatStyle = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.DefaultCombatStyle);
+
                 if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Portal || weenie.Type == (int)ACE.Entity.Enum.WeenieType.HousePortal)
                 {
-                    if (weenie.ClassId > 31034)
-                        continue;
+                    //if (weenie.ClassId > 31034)
+                    //    continue;
 
-                    var attackable = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.Attackable);
-                    var gravityStatus = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.GravityStatus);
+                    //var attackable = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.Attackable);
+                    //var gravityStatus = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.GravityStatus);
                     var portalShowDestination = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.PortalShowDestination);
 
-                    if (attackable != null && attackable.Value)
-                        weenie.WeeniePropertiesBool.Remove(attackable);
+                    //if (attackable != null && attackable.Value)
+                    //    weenie.WeeniePropertiesBool.Remove(attackable);
 
-                    if (gravityStatus != null && gravityStatus.Value)
-                        weenie.WeeniePropertiesBool.Remove(gravityStatus);
+                    //if (gravityStatus != null && gravityStatus.Value)
+                    //    weenie.WeeniePropertiesBool.Remove(gravityStatus);
 
                     if (portalShowDestination != null && portalShowDestination.Value)
                         weenie.WeeniePropertiesBool.Remove(portalShowDestination);
                 }
+                else if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Creature)
+                {
+                    var npcLooksLikeObject = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.NpcLooksLikeObject);
+
+                    if (npcLooksLikeObject != null && npcLooksLikeObject.Value)
+                    {
+                        var aiImmobile = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AiImmobile);
+                        var dontTurnOrMoveWhenGiving = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.DontTurnOrMoveWhenGiving);
+
+                        if (aiImmobile == null)
+                            weenie.WeeniePropertiesBool.Add(new ACE.Database.Models.World.WeeniePropertiesBool { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyBool.AiImmobile, Value = true });
+                        else if (!aiImmobile.Value)
+                            aiImmobile.Value = true;
+
+                        if (dontTurnOrMoveWhenGiving == null || (dontTurnOrMoveWhenGiving != null && !dontTurnOrMoveWhenGiving.Value))
+                            weenie.WeeniePropertiesBool.Add(new ACE.Database.Models.World.WeeniePropertiesBool { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyBool.DontTurnOrMoveWhenGiving, Value = true });
+                        else if (!dontTurnOrMoveWhenGiving.Value)
+                            dontTurnOrMoveWhenGiving.Value = true;
+                    }
+
+                    var creatureOvers = weenie.WeeniePropertiesInt.Where(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.DamageRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.DamageResistRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CritRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CritDamageRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CritResistRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CritDamageResistRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearDamage
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearDamageResist
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearCrit
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearCritResist
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearCritDamage
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearCritDamageResist
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearHealingBoost
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearNetherResist
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearLifeResist
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearMaxHealth
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.PKDamageRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.PKDamageResistRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearPKDamageRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearPKDamageResistRating
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.Overpower
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.OverpowerResist
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearOverpower
+                                                                           || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GearOverpowerResist
+                    ).ToList();
+
+                    foreach (var item in creatureOvers)
+                    {
+                        if (item.Value == 0)
+                            weenie.WeeniePropertiesInt.Remove(item);
+                    }
+                }
+                else if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Caster)
+                {
+                    if (defaultCombatStyle == null)
+                        weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.DefaultCombatStyle, Value = (int)ACE.Entity.Enum.CombatStyle.Magic });
+                }
+                //else
+                //    continue;
+
+                foreach (var page in weenie.WeeniePropertiesBookPageData)
+                {
+                    if (page.AuthorAccount != "prewritten")
+                        page.AuthorAccount = "prewritten";
+
+                    if (page.AuthorId != 0xFFFFFFFF)
+                        page.AuthorId = 0xFFFFFFFF;
+                }
+
+                var procSpell = weenie.WeeniePropertiesDID.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyDataId.ProcSpell);
+                if (procSpell != null)
+                {
+                    var spell = weenie.WeeniePropertiesSpellBook.FirstOrDefault(s => s.Spell == procSpell.Value);
+                    if (spell != null)
+                        weenie.WeeniePropertiesSpellBook.Remove(spell);
+                }
+
+                var didSpell = weenie.WeeniePropertiesDID.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyDataId.Spell);
+                if (didSpell != null)
+                {
+                    var spell = weenie.WeeniePropertiesSpellBook.FirstOrDefault(s => s.Spell == didSpell.Value);
+                    if (spell != null)
+                        weenie.WeeniePropertiesSpellBook.Remove(spell);
+                }
+
+                var physicsState = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.PhysicsState);
+                if (physicsState != null)
+                {
+                    var ps = (ACE.Entity.Enum.PhysicsState)physicsState.Value;
+                    ps &= ~ACE.Entity.Enum.PhysicsState.HasPhysicsBSP;
+                    physicsState.Value = (int)ps;
+                }
+
+                foreach (var intV in weenie.WeeniePropertiesInt)
+                {
+                    if (intV.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemsCapacity && intV.Value == 255)
+                        intV.Value = -1;
+                    if (intV.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ContainersCapacity && intV.Value == 255)
+                        intV.Value = -1;
+                }
+
+                var creationTimestamp = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CreationTimestamp);
+                if (creationTimestamp != null)
+                    weenie.WeeniePropertiesInt.Remove(creationTimestamp);
+
+                var appraisalMaxPages = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.AppraisalMaxPages);
+                if (appraisalMaxPages != null)
+                    weenie.WeeniePropertiesInt.Remove(appraisalMaxPages);
+
+                var appraisalPages = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.AppraisalPages);
+                if (appraisalPages != null)
+                    weenie.WeeniePropertiesInt.Remove(appraisalPages);
+
+                var appraisalItemSkill = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.AppraisalItemSkill);
+                if (appraisalItemSkill != null)
+                {
+                    weenie.WeeniePropertiesInt.Remove(appraisalItemSkill);
+
+                    var itemSkillLimit = weenie.WeeniePropertiesDID.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyDataId.ItemSkillLimit);
+                    if (itemSkillLimit == null)
+                        weenie.WeeniePropertiesDID.Add(new ACE.Database.Models.World.WeeniePropertiesDID { Type = (ushort)ACE.Entity.Enum.Properties.PropertyDataId.ItemSkillLimit, Value = (uint)appraisalItemSkill.Value });
+                    else if (itemSkillLimit.Value != appraisalItemSkill.Value)
+                        itemSkillLimit.Value = (uint)appraisalItemSkill.Value;
+                }
+
+                var lockpickSuccess = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.AppraisalLockpickSuccessPercent);
+                if (lockpickSuccess != null)
+                    weenie.WeeniePropertiesInt.Remove(lockpickSuccess);
+
+                var appraisalLongDescDecoration = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.AppraisalLongDescDecoration);
+                if (appraisalLongDescDecoration != null)
+                    weenie.WeeniePropertiesInt.Remove(appraisalLongDescDecoration);
+
+                var appraisalHasAllowedActivator = weenie.WeeniePropertiesBool.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AppraisalHasAllowedActivator);
+                if (appraisalHasAllowedActivator != null)
+                    weenie.WeeniePropertiesBool.Remove(appraisalHasAllowedActivator);
+
+                var appraisalHasAllowedWielder = weenie.WeeniePropertiesBool.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AppraisalHasAllowedWielder);
+                if (appraisalHasAllowedWielder != null)
+                    weenie.WeeniePropertiesBool.Remove(appraisalHasAllowedWielder);
+
+                var currentWieldedLocation = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CurrentWieldedLocation);
+                if (currentWieldedLocation != null)
+                    weenie.WeeniePropertiesInt.Remove(currentWieldedLocation);
+
+                var remainingLifespan = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.RemainingLifespan);
+                if (remainingLifespan != null)
+                    weenie.WeeniePropertiesInt.Remove(remainingLifespan);
+
+                if (weenie.WeeniePropertiesEmote.Any(e => e.Category == (uint)ACE.Entity.Enum.EmoteCategory.Give))
+                {
+                    if (weenie.ClassId != 4055 && weenie.ClassId != 6823) // skip these wcids from cache
+                    {
+                        var allowGive = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AllowGive);
+
+                        if (allowGive == null)
+                            weenie.WeeniePropertiesBool.Add(new ACE.Database.Models.World.WeeniePropertiesBool { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyBool.AllowGive, Value = true });
+                        else if (!allowGive.Value)
+                            allowGive.Value = true;
+                    }
+                }
+
+                var parentLocation = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ParentLocation);
+                var placementPosition = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.PlacementPosition);
+
+                if (weenie.Type != (int)ACE.Entity.Enum.WeenieType.MissileLauncher)
+                {
+                    if (parentLocation != null)
+                        weenie.WeeniePropertiesInt.Remove(parentLocation);
+
+
+                    if (placementPosition != null)
+                        weenie.WeeniePropertiesInt.Remove(placementPosition);
+                }
                 else
-                    continue;
+                {
+                    if (defaultCombatStyle != null && defaultCombatStyle.Value != (int)ACE.Entity.Enum.CombatStyle.Atlatl)
+                    {
+                        if (parentLocation == null)
+                            weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ParentLocation, Value = (int)ACE.Entity.Enum.ParentLocation.LeftHand });
+                        else if (parentLocation.Value != (int)ACE.Entity.Enum.ParentLocation.LeftHand)
+                            parentLocation.Value = (int)ACE.Entity.Enum.ParentLocation.LeftHand;
+
+                        if (placementPosition == null)
+                            weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.PlacementPosition, Value = (int)ACE.Entity.Enum.Placement.LeftHand });
+                        else if (placementPosition.Value != (int)ACE.Entity.Enum.Placement.LeftHand)
+                            placementPosition.Value = (int)ACE.Entity.Enum.Placement.LeftHand;
+                    }
+                }
+
+                var pcapBools = weenie.WeeniePropertiesBool.ToList();
+                foreach (var prop in pcapBools)
+                {
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesBool.Remove(prop);
+                }
+                var pcapDids = weenie.WeeniePropertiesDID.ToList();
+                foreach (var prop in pcapDids)
+                {
+                    //if (prop.Type == 8044) continue;
+
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesDID.Remove(prop);
+                }
+                var pcapFloats = weenie.WeeniePropertiesFloat.ToList();
+                foreach (var prop in pcapFloats)
+                {
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesFloat.Remove(prop);
+                }
+                var pcapIids = weenie.WeeniePropertiesIID.ToList();
+                foreach (var prop in pcapIids)
+                {
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesIID.Remove(prop);
+                }
+                var pcapInts = weenie.WeeniePropertiesInt.ToList();
+                foreach (var prop in pcapInts)
+                {
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesInt.Remove(prop);
+                }
+                var pcapInt64s = weenie.WeeniePropertiesInt64.ToList();
+                foreach (var prop in pcapInt64s)
+                {
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesInt64.Remove(prop);
+                }
+                var pcapPoss = weenie.WeeniePropertiesPosition.ToList();
+                foreach (var prop in pcapPoss)
+                {
+                    if (prop.PositionType >= 8000)
+                        weenie.WeeniePropertiesPosition.Remove(prop);
+                }
+                var pcapStrs = weenie.WeeniePropertiesString.ToList();
+                foreach (var prop in pcapStrs)
+                {
+                    if (prop.Type >= 8000)
+                        weenie.WeeniePropertiesString.Remove(prop);
+                }
             }
         }
 
@@ -3143,6 +3463,8 @@ namespace PhatACCacheBinParser
 
         private void cmdACEAMutationParse_Click(object sender, EventArgs e)
         {
+            //taskA = Task.Run(() => Console.WriteLine("Hello from taskA."));
+
             cmdACEAMutationParse.Enabled = false;
 
             ////var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
@@ -3258,7 +3580,11 @@ namespace PhatACCacheBinParser
 
                     url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts/{fileName}";
 
-                    DownloadAndImportDatabase(url, fileName, "ace_world");
+                    //DownloadAndImportDatabase(url, fileName, "ace_world");
+                    if (DatabaseNeedsUpdate("ace_world", "v" + version))
+                        DownloadAndImportDatabase(url, fileName, "ace_world");
+                    else
+                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Found {version} currently installed in ace_world database. Skipping update!";
 
                     txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database... ";
                     url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
@@ -3279,7 +3605,11 @@ namespace PhatACCacheBinParser
 
                     txtACEDatabaseConnector.Text += Environment.NewLine + $"Found release {tag}!";
 
-                    DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
+                    //DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
+                    if (DatabaseNeedsUpdate("ace_world_prev", tag))
+                        DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
+                    else
+                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Found {tag} currently installed in ace_world_prev database. Skipping update!";
 
                     txtACEDatabaseConnector.Text += Environment.NewLine + $"Clearing output directory... ";
                     var di = new DirectoryInfo((string)Settings.Default["GDLESQLOutputFolder"]);
@@ -3296,25 +3626,25 @@ namespace PhatACCacheBinParser
                     txtACEDatabaseConnector.Text += Environment.NewLine + "Starting data normalization and updating last_Modified field for release ...";
                 }
 
-                //var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
-                var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
-                foreach (var file in esFiles)
-                {
-                    var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
-                    //var x = file.Remove(rootToRemove.Length);
-                    var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
-                    //Console.WriteLine(x);
-                    var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
-                    var fileInfo = new FileInfo(currentFileNameAndPath);
-                    var fileNameES = fileInfo.Name;
-                    var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileNameES.Length + 1)];
+                ////var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
+                //var esFiles = Directory.EnumerateFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", SearchOption.AllDirectories);
+                //foreach (var file in esFiles)
+                //{
+                //    var rootToRemove = @"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches\";
+                //    //var x = file.Remove(rootToRemove.Length);
+                //    var currentFileNameAndPath = file[rootToRemove.Length..file.Length];
+                //    //Console.WriteLine(x);
+                //    var newRoot = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                //    var fileInfo = new FileInfo(currentFileNameAndPath);
+                //    var fileNameES = fileInfo.Name;
+                //    var fileDirectory = newRoot + currentFileNameAndPath[0..^(fileNameES.Length + 1)];
 
-                    Directory.CreateDirectory(fileDirectory);
+                //    Directory.CreateDirectory(fileDirectory);
 
-                    var outputFile = fileDirectory + "\\" + fileNameES;
+                //    var outputFile = fileDirectory + "\\" + fileNameES;
 
-                    File.Copy(file, outputFile);
-                }
+                //    File.Copy(file, outputFile);
+                //}
 
                 if (!baselineExport)
                 {
@@ -3341,6 +3671,40 @@ namespace PhatACCacheBinParser
             }
 
             cmdACEAMutationParse.Enabled = true;
+        }
+
+        private bool DatabaseNeedsUpdate(string dbName, string version)
+        {
+            var sqlConnect = new MySql.Data.MySqlClient.MySqlConnection($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};DefaultCommandTimeout=120");
+
+            sqlConnect.Open();
+
+            //string sql = "SELECT COUNT(*) FROM Country";
+            //var cmd = new MySql.Data.MySqlClient.MySqlCommand(sql, sqlConnect);
+            //object result = cmd.ExecuteScalar();
+            //if (result != null)
+            //{
+            //    int r = Convert.ToInt32(result);
+            //    Console.WriteLine("Number of countries in the world database is: " + r);
+            //}
+
+            try
+            {
+                var sql = $"SELECT `patch_Version` FROM {dbName}.version;";
+                var cmd = new MySql.Data.MySqlClient.MySqlCommand(sql, sqlConnect);
+                var result = cmd.ExecuteScalar() as string;
+
+                if (result != null && result.Equals(version))
+                    return false;
+            }
+            catch (Exception ex)
+            {
+
+            }
+
+            sqlConnect.Close();
+
+            return true;
         }
 
         private void DownloadAndImportDatabase(string dbURL, string dbFileName, string dbName)
