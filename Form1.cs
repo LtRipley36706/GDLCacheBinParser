@@ -877,8 +877,11 @@ namespace PhatACCacheBinParser
 
                 DeDupeRegions(prevEncounters, deDupedEncounters, out deDupedEncounters);
 
-                foreach (var thing in deDupedEncounters)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedEncounters)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedEncounters.Count > 0)
@@ -1051,8 +1054,11 @@ namespace PhatACCacheBinParser
 
                 DeDupeSpells(prevSpells, deDupedSpells, out deDupedSpells);
 
-                foreach (var thing in deDupedSpells)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedSpells)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedSpells.Count > 0)
@@ -1240,10 +1246,13 @@ namespace PhatACCacheBinParser
                 DeDupeTreasureDeath(prevTreasureDeath, deDupedTreasureDeath, out deDupedTreasureDeath);
                 DeDupeTreasureWielded(prevTreasureWielded, deDupedTreasureWielded, out deDupedTreasureWielded);
 
-                foreach (var thing in deDupedTreasureDeath)
-                    thing.LastModified = GetTimestampForExport();
-                foreach (var thing in deDupedTreasureWielded)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedTreasureDeath)
+                        thing.LastModified = GetTimestampForExport();
+                    foreach (var thing in deDupedTreasureWielded)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedTreasureDeath.Count > 0)
@@ -1451,11 +1460,14 @@ namespace PhatACCacheBinParser
                 //DeDupeCrafting(prevRecipes, prevCookBooks, recipes, cookBooks, out var deDupedRecipes, out var deDupedCookBooks, out var deDupeRecipeIds);
                 DeDupeCrafting(prevRecipes, prevCookBooks, deDupedRecipes, deDupedCookBooks, out deDupedRecipes, out deDupedCookBooks, out deDupeRecipeIds);
 
-                foreach (var thing in deDupedRecipes)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedRecipes)
+                        thing.LastModified = GetTimestampForExport();
 
-                foreach (var thing in deDupedCookBooks)
-                    thing.LastModified = GetTimestampForExport();
+                    foreach (var thing in deDupedCookBooks)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedRecipes.Count > 0 && deDupedCookBooks.Count > 0)
@@ -2039,12 +2051,15 @@ namespace PhatACCacheBinParser
 
                 DeDupeLandblocks(prevLandblocks, deDupedLandblockInstances, out deDupedLandblockInstances);
 
-                foreach (var thing in deDupedLandblockInstances)
+                if (doDateUpdate)
                 {
-                    thing.LastModified = GetTimestampForExport();
+                    foreach (var thing in deDupedLandblockInstances)
+                    {
+                        thing.LastModified = GetTimestampForExport();
 
-                    foreach (var subthing in thing.LandblockInstanceLink)
-                        subthing.LastModified = GetTimestampForExport();
+                        foreach (var subthing in thing.LandblockInstanceLink)
+                            subthing.LastModified = GetTimestampForExport();
+                    }
                 }
             }
 
@@ -2223,8 +2238,11 @@ namespace PhatACCacheBinParser
 
                 DeDupeQuests(prevQuests, deDupedQuests, out deDupedQuests);
 
-                foreach (var thing in deDupedQuests)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedQuests)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedQuests.Count > 0)
@@ -2268,6 +2286,7 @@ namespace PhatACCacheBinParser
         }
 
         private bool captureAndResortESfiles = true;
+        private bool doDateUpdate = false;
 
         private void cmdACE9WeeniesParse_Click(object sender, EventArgs e)
         {
@@ -2336,6 +2355,20 @@ namespace PhatACCacheBinParser
 
             DeDupeWeenies(cacheWeenies, Globals.ACEDatabase.Weenies, out var deDupedWeenies);
 
+            //foreach (var wo in deDupedWeenies)
+            //{
+            //    var xx = cacheWeenies.FirstOrDefault(z => z.ClassId == wo.ClassId);
+
+            //    if (xx?.WeeniePropertiesEventFilter != null && (wo.WeeniePropertiesEventFilter.Count == 0 || wo.WeeniePropertiesEventFilter.Count != xx?.WeeniePropertiesEventFilter.Count))
+            //    {
+            //        wo.WeeniePropertiesEventFilter.Clear();
+            //        foreach (var ev in xx.WeeniePropertiesEventFilter)
+            //        {
+            //            wo.WeeniePropertiesEventFilter.Add(new ACE.Database.Models.World.WeeniePropertiesEventFilter { Event = ev.Event, ObjectId = ev.ObjectId });
+            //        }
+            //    }
+            //}
+
             //foreach (var thing in deDupedWeenies)
             //    thing.LastModified = new DateTime(2021, 11, 1);
 
@@ -2385,6 +2418,20 @@ namespace PhatACCacheBinParser
                 //{
                 //    var xx = cacheWeenies.FirstOrDefault(z => z.ClassId == wo.ClassId);
 
+                //    if (xx?.WeeniePropertiesEventFilter != null && (wo.WeeniePropertiesEventFilter.Count == 0 || wo.WeeniePropertiesEventFilter.Count != xx?.WeeniePropertiesEventFilter.Count))
+                //    {
+                //        wo.WeeniePropertiesEventFilter.Clear();
+                //        foreach (var ev in xx.WeeniePropertiesEventFilter)
+                //        {
+                //            wo.WeeniePropertiesEventFilter.Add(new ACE.Database.Models.World.WeeniePropertiesEventFilter { Event = ev.Event, ObjectId = ev.ObjectId });
+                //        }
+                //    }
+                //}
+
+                //foreach (var wo in deDupedWeenies)
+                //{
+                //    var xx = cacheWeenies.FirstOrDefault(z => z.ClassId == wo.ClassId);
+
                 //    wo.WeeniePropertiesPosition.Clear();
                 //    foreach (var pos in xx.WeeniePropertiesPosition)
                 //    {
@@ -2409,8 +2456,11 @@ namespace PhatACCacheBinParser
                 CleanupWeenies(deDupedWeenies);
                 //txtACEDatabaseConnector.Text += $" completed." + Environment.NewLine;
 
-                foreach (var thing in deDupedWeenies)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedWeenies)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedWeenies.Count > 0)
@@ -2444,13 +2494,15 @@ namespace PhatACCacheBinParser
                     var weenieSubFolder = sqlWriter.GetDefaultSubfolder(weenie);
 
                     var fileInfo = new FileInfo(weenieRoot + weenieSubFolder + weenieFileName);
-                    var x = Directory.EnumerateFiles(esRoot, weenieFileName[0..5] + "*.es", SearchOption.AllDirectories);
+                    var trimName = weenieFileName[0..5];
+                    var trimName2 = weenieFileName[0..5].TrimStart('0');
+                    var x = Directory.EnumerateFiles(esRoot, trimName + "*.es", SearchOption.AllDirectories).Union(Directory.EnumerateFiles(esRoot, trimName2 + ".es", SearchOption.AllDirectories));
                     var y = x?.LastOrDefault();
 
                     if (y != null)
                     {
                         var esFile = new FileInfo(y);
-                        File.Move(y, weenieRoot + weenieSubFolder + weenieFileName[0..5] + ".es", true);
+                        File.Move(y, weenieRoot + weenieSubFolder + trimName + ".es", true);
                         esLink++;
                     }
                 }
@@ -2711,10 +2763,19 @@ namespace PhatACCacheBinParser
                     }
                 }
 
+                foreach (var str in weenie.WeeniePropertiesString)
+                {
+                    str.Value = str.Value.Replace("''", "'");
+                }
+
+                var rotationSpeed = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.RotationSpeed);
+                if (rotationSpeed != null && (rotationSpeed.Value >= 5 || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Creature))
+                    weenie.WeeniePropertiesFloat.Remove(rotationSpeed);
+
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
                 {
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesBool.Remove(prop);
                 }
                 var pcapDids = weenie.WeeniePropertiesDID.ToList();
@@ -2722,44 +2783,86 @@ namespace PhatACCacheBinParser
                 {
                     //if (prop.Type == 8044) continue;
 
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesDID.Remove(prop);
                 }
                 var pcapFloats = weenie.WeeniePropertiesFloat.ToList();
                 foreach (var prop in pcapFloats)
                 {
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesFloat.Remove(prop);
                 }
                 var pcapIids = weenie.WeeniePropertiesIID.ToList();
                 foreach (var prop in pcapIids)
                 {
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesIID.Remove(prop);
                 }
                 var pcapInts = weenie.WeeniePropertiesInt.ToList();
                 foreach (var prop in pcapInts)
                 {
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesInt.Remove(prop);
                 }
                 var pcapInt64s = weenie.WeeniePropertiesInt64.ToList();
                 foreach (var prop in pcapInt64s)
                 {
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesInt64.Remove(prop);
                 }
                 var pcapPoss = weenie.WeeniePropertiesPosition.ToList();
                 foreach (var prop in pcapPoss)
                 {
-                    if (prop.PositionType >= 8000)
+                    if (prop.PositionType >= 8000 || prop.PositionType == 0)
                         weenie.WeeniePropertiesPosition.Remove(prop);
                 }
                 var pcapStrs = weenie.WeeniePropertiesString.ToList();
                 foreach (var prop in pcapStrs)
                 {
-                    if (prop.Type >= 8000)
+                    if (prop.Type >= 8000 || prop.Type == 0)
                         weenie.WeeniePropertiesString.Remove(prop);
+                }
+                var pcapAtt = weenie.WeeniePropertiesAttribute.ToList();
+                foreach (var prop in pcapAtt)
+                {
+                    if (prop.Type >= 8000 || prop.Type == 0)
+                        weenie.WeeniePropertiesAttribute.Remove(prop);
+                }
+                var pcapAtt2nd = weenie.WeeniePropertiesAttribute2nd.ToList();
+                foreach (var prop in pcapAtt2nd)
+                {
+                    if (prop.Type >= 8000 || prop.Type == 0)
+                        weenie.WeeniePropertiesAttribute2nd.Remove(prop);
+                }
+                //var pcapBpp = weenie.WeeniePropertiesBodyPart.ToList();
+                //foreach (var prop in pcapBpp)
+                //{
+                //    if (prop.Key == 0)
+                //        weenie.WeeniePropertiesBodyPart.Remove(prop);
+                //}
+                var pcapSkills = weenie.WeeniePropertiesSkill.ToList();
+                foreach (var prop in pcapSkills)
+                {
+                    if (prop.Type >= 8000 || prop.Type == 0)
+                        weenie.WeeniePropertiesSkill.Remove(prop);
+                }
+                var pcapSpells = weenie.WeeniePropertiesSpellBook.ToList();
+                foreach (var prop in pcapSpells)
+                {
+                    if (prop.Spell == 0)
+                        weenie.WeeniePropertiesSpellBook.Remove(prop);
+                }
+                var pcapEmotes = weenie.WeeniePropertiesEmote.ToList();
+                foreach (var prop in pcapEmotes)
+                {
+                    if (prop.Category == 0)
+                        weenie.WeeniePropertiesEmote.Remove(prop);
+                }
+                var pcapEvtFilters = weenie.WeeniePropertiesEventFilter.ToList();
+                foreach (var prop in pcapEvtFilters)
+                {
+                    if (prop.Event == 0)
+                        weenie.WeeniePropertiesEventFilter.Remove(prop);
                 }
             }
         }
@@ -3650,6 +3753,7 @@ namespace PhatACCacheBinParser
                 {
                     usePrevVersion = true;
                     writeDeletedFiles = true;
+                    doDateUpdate = true;
                     cmdACE9WeeniesParse_Click(sender, e);
                     cmdACE1RegionsParse_Click(sender, e);
                     cmdACE2SpellsParse_Click(sender, e);
@@ -3661,6 +3765,7 @@ namespace PhatACCacheBinParser
                     cmdACEBEventsParse_Click(sender, e);
                     usePrevVersion = false;
                     writeDeletedFiles = false;
+                    doDateUpdate = false;
                 }
 
                 txtACEDatabaseConnector.Text += "data normalization and updates complete!" + Environment.NewLine;
@@ -3835,8 +3940,11 @@ namespace PhatACCacheBinParser
 
                 DeDupeEvents(prevEvents, deDupedEvents, out deDupedEvents);
 
-                foreach (var thing in deDupedEvents)
-                    thing.LastModified = GetTimestampForExport();
+                if (doDateUpdate)
+                {
+                    foreach (var thing in deDupedEvents)
+                        thing.LastModified = GetTimestampForExport();
+                }
             }
 
             if (deDupedEvents.Count > 0)
