@@ -867,9 +867,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.Encounter.Load();
@@ -1044,9 +1045,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.Spell.Load();
@@ -1233,9 +1235,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.TreasureDeath.Load();
@@ -1434,9 +1437,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.CookBook.Load();
@@ -2040,9 +2044,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.LandblockInstance.Load();
@@ -2062,6 +2067,16 @@ namespace PhatACCacheBinParser
                     }
                 }
             }
+
+            //foreach (var thing in deDupedLandblockInstances)
+            //{
+            //    var date = new DateTime(2021, 11, 1);
+            //    //thing.LastModified = date;
+            //    date = thing.LastModified;
+
+            //    foreach (var subthing in thing.LandblockInstanceLink)
+            //        subthing.LastModified = date;
+            //}
 
             if (deDupedLandblockInstances.Count > 0)
                 //LandblockSQLWriter.WriteFiles(deDuped, Settings.Default["GDLESQLOutputFolder"] + "\\6 LandBlockExtendedData\\SQL\\", Globals.WeenieNames, true);
@@ -2228,9 +2243,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.Quest.Load();
@@ -2379,9 +2395,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.Weenie.Load();
@@ -2593,6 +2610,17 @@ namespace PhatACCacheBinParser
                             dontTurnOrMoveWhenGiving.Value = true;
                     }
 
+                    //var canGenerateRare = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.CanGenerateRare);
+                    //var level = weenie.WeeniePropertiesInt.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.Level);
+
+                    ////if (level?.Value < 100 && (canGenerateRare?.Value ?? false))
+                    ////{
+                    ////    weenie.WeeniePropertiesBool.Remove(canGenerateRare);
+                    ////}
+
+                    //if (canGenerateRare != null)
+                    //    weenie.WeeniePropertiesBool.Remove(canGenerateRare);
+
                     var creatureOvers = weenie.WeeniePropertiesInt.Where(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.DamageRating
                                                                            || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.DamageResistRating
                                                                            || y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.CritRating
@@ -2640,6 +2668,35 @@ namespace PhatACCacheBinParser
 
                     if (page.AuthorId != 0xFFFFFFFF)
                         page.AuthorId = 0xFFFFFFFF;
+                }
+
+                if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Book)
+                {
+                    if (weenie.WeeniePropertiesBook != null)
+                    {
+                        var maxNumCharsPerPage = weenie.WeeniePropertiesBook.MaxNumCharsPerPage;
+                        var maxNumPages = weenie.WeeniePropertiesBook.MaxNumPages;
+
+                        if (maxNumCharsPerPage > 2000)
+                            maxNumCharsPerPage = 2000;
+
+                        if (maxNumCharsPerPage < 1000)
+                            maxNumCharsPerPage = 1000;
+
+                        var currentPageCount = weenie.WeeniePropertiesBookPageData?.Count ?? 0;
+
+                        if (maxNumPages < currentPageCount)
+                            maxNumPages = currentPageCount;
+
+                        weenie.WeeniePropertiesBook.MaxNumPages = maxNumPages;
+                        weenie.WeeniePropertiesBook.MaxNumCharsPerPage = maxNumCharsPerPage;
+                    }
+                    else
+                    {
+                        var currentPageCount = weenie.WeeniePropertiesBookPageData?.Count ?? 0;
+
+                        weenie.WeeniePropertiesBook = new ACE.Database.Models.World.WeeniePropertiesBook { ObjectId = weenie.ClassId, MaxNumCharsPerPage = 1000, MaxNumPages = currentPageCount };
+                    }
                 }
 
                 var procSpell = weenie.WeeniePropertiesDID.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyDataId.ProcSpell);
@@ -2722,6 +2779,10 @@ namespace PhatACCacheBinParser
                 if (remainingLifespan != null)
                     weenie.WeeniePropertiesInt.Remove(remainingLifespan);
 
+                var attackerAi = weenie.WeeniePropertiesBool.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AttackerAi);
+                if (attackerAi != null)
+                    weenie.WeeniePropertiesBool.Remove(attackerAi);
+
                 if (weenie.WeeniePropertiesEmote.Any(e => e.Category == (uint)ACE.Entity.Enum.EmoteCategory.Give))
                 {
                     if (weenie.ClassId != 4055 && weenie.ClassId != 6823) // skip these wcids from cache
@@ -2771,6 +2832,14 @@ namespace PhatACCacheBinParser
                 var rotationSpeed = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.RotationSpeed);
                 if (rotationSpeed != null && (rotationSpeed.Value >= 5 || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Creature))
                     weenie.WeeniePropertiesFloat.Remove(rotationSpeed);
+
+                var canGenerateRare = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.CanGenerateRare);
+                if (canGenerateRare != null)
+                    weenie.WeeniePropertiesBool.Remove(canGenerateRare);
+
+                var corpseGeneratedRare = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.CorpseGeneratedRare);
+                if (corpseGeneratedRare != null)
+                    weenie.WeeniePropertiesBool.Remove(corpseGeneratedRare);
 
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
@@ -3802,7 +3871,7 @@ namespace PhatACCacheBinParser
                 if (result != null && result.Equals(version))
                     return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 
             }
@@ -3930,9 +3999,10 @@ namespace PhatACCacheBinParser
 
             if (usePrevVersion)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev;TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<ACE.Database.Models.World.WorldDbContext>();
                 //optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database=ace_world_prev");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var prevContext = new ACE.Database.Models.World.WorldDbContext(optionsBuilder.Options);
                 prevContext.Event.Load();

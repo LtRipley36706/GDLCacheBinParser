@@ -196,8 +196,9 @@ namespace PhatACCacheBinParser
             {
                 try
                 {
+                    var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase};TreatTinyAsBoolean=False";
                     var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
-                    optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                    optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                     WorldDbContext = new WorldDbContext(optionsBuilder.Options);
 
@@ -366,8 +367,9 @@ namespace PhatACCacheBinParser
 
             public static ACE.Database.Models.World.Weenie GetWeenie(uint weenieClassId, bool updateWeenieNames = true)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase};TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var worldDbContext = new WorldDbContext(optionsBuilder.Options);
 
@@ -421,8 +423,9 @@ namespace PhatACCacheBinParser
 
             public static List<ACE.Database.Models.World.LandblockInstance> GetLandblockInstancesForLandblock(ushort landblock)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase};TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var worldDbContext = new WorldDbContext(optionsBuilder.Options);
 
@@ -433,8 +436,9 @@ namespace PhatACCacheBinParser
 
             public static List<ACE.Database.Models.World.LandblockInstance> CloneLandblockToAnother(uint landblockToCloneFrom, uint landblockToCloneTo)
             {
+                var connectionString = $"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase};TreatTinyAsBoolean=False";
                 var optionsBuilder = new DbContextOptionsBuilder<WorldDbContext>();
-                optionsBuilder.UseMySql($"server={Settings.Default.ACEWorldServer};port={Settings.Default.ACEWorldPort};user={Settings.Default.ACEWorldUser};password={Settings.Default.ACEWorldPassword};database={Settings.Default.ACEWorldDatabase}");
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
                 var worldDbContext = new WorldDbContext(optionsBuilder.Options);
 
