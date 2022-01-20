@@ -161,6 +161,14 @@ namespace PhatACCacheBinParser.Common
         DAGGERTRAININGLIGHT = 45538,
         SHIELDROUND = 93,
         PETDEVICEGOLEMMUD = 48886,
+
+        scarabdark = 37117,
+        scarabmana = 37155,
+        nightshade = 43347,
+        shadowroot = 43348,
+        soulweed = 43349,
+        alchemkemeroi = 43350,
+        alchembottledrage = 43351
     }
 
     // Weenie Classes found in Feb 05 pdb

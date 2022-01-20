@@ -14,6 +14,7 @@ using System.Windows.Forms;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using PhatACCacheBinParser.ACE_Helpers;
+using PhatACCacheBinParser.Common;
 using PhatACCacheBinParser.Properties;
 using PhatACCacheBinParser.Seg1_RegionDescExtendedData;
 using PhatACCacheBinParser.Seg2_SpellTableExtendedData;
@@ -2062,6 +2063,9 @@ namespace PhatACCacheBinParser
                     {
                         thing.LastModified = GetTimestampForExport();
 
+                        if (thing.Guid >= 0x80000000)
+                            txtACEDatabaseConnector.Text += Environment.NewLine + $"WARNING: Landblock instance 0x{thing.Guid:X8} in landblock 0x{thing.ObjCellId:X4} is not in the static range and will cause issues!!! " + Environment.NewLine;
+
                         foreach (var subthing in thing.LandblockInstanceLink)
                             subthing.LastModified = GetTimestampForExport();
                     }
@@ -2570,6 +2574,24 @@ namespace PhatACCacheBinParser
         {
             foreach (var weenie in weenies)
             {
+                var name = weenie.WeeniePropertiesString.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyString.Name);
+
+                var className = "";
+                if (Enum.IsDefined(typeof(WCLASSID), (int)weenie.ClassId))
+                    className = Enum.GetName(typeof(WCLASSID), weenie.ClassId).ToLower();
+                else if (weenie.ClassId <= ushort.MaxValue && Enum.IsDefined(typeof(WeenieClasses), (ushort)weenie.ClassId))
+                {
+                    var clsName = Enum.GetName(typeof(WeenieClasses), weenie.ClassId).ToLower().Substring(2);
+                    className = clsName.Substring(0, clsName.Length - 6);
+                }
+                else
+                    className = "ace" + weenie.ClassId.ToString() + "-" + name.Value.Replace("'", "").Replace(" ", "").Replace(".", "").Replace("(", "").Replace(")", "").Replace("+", "").Replace(":", "").Replace("_", "").Replace("-", "").Replace(",", "").Replace("\"", "").ToLower();
+
+                className = className.Replace("_", "-");
+
+                if (!weenie.ClassName.Equals(className))
+                    weenie.ClassName = className;
+
                 var defaultCombatStyle = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.DefaultCombatStyle);
 
                 if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Portal || weenie.Type == (int)ACE.Entity.Enum.WeenieType.HousePortal)
@@ -2840,6 +2862,46 @@ namespace PhatACCacheBinParser
                 var corpseGeneratedRare = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.CorpseGeneratedRare);
                 if (corpseGeneratedRare != null)
                     weenie.WeeniePropertiesBool.Remove(corpseGeneratedRare);
+
+                var generatorStartTime = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GeneratorStartTime);
+                //if (generatorStartTime != null)
+                //{
+                //    var date = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddSeconds(generatorStartTime.Value);
+                //    if (date.Year == DateTime.Now.Year - 1)
+                //        generatorStartTime.Value = (int)(date.AddYears(1) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                //}
+
+                var generatorEndTime = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.GeneratorEndTime);
+                //if (generatorEndTime != null)
+                //{
+                //    var date = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddSeconds(generatorEndTime.Value);
+                //    if (date.Year == DateTime.Now.Year - 1)
+                //        generatorEndTime.Value = (int)(date.AddYears(1) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                //}
+
+                if (generatorStartTime != null && generatorEndTime != null)
+                {
+                    var startDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddSeconds(generatorStartTime.Value);
+                    var endDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddSeconds(generatorEndTime.Value);
+                    //if (startDate.Hour == 10 && endDate.Hour == 9)
+                    //{
+                    //    generatorStartTime.Value = (int)(startDate.AddHours(-5) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                    //    generatorEndTime.Value = (int)(endDate.AddHours(-5) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                    //}
+
+                    //if (startDate.Hour == 14 && endDate.Hour == 13)
+                    //{
+                    //    generatorStartTime.Value = (int)(startDate.AddHours(-9) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                    //    generatorEndTime.Value = (int)(endDate.AddHours(-9) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                    //}
+
+                    //if (startDate.Year == DateTime.UtcNow.Year && endDate.Year == DateTime.UtcNow.Year && DateTime.UtcNow > endDate)
+                    if (startDate.Year > 2017 && DateTime.UtcNow > endDate && DateTime.UtcNow > startDate)
+                    {
+                        generatorStartTime.Value = (int)(startDate.AddYears(1) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                        generatorEndTime.Value = (int)(endDate.AddYears(1) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                    }
+                }
 
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
