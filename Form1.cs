@@ -2306,6 +2306,7 @@ namespace PhatACCacheBinParser
         }
 
         private bool captureAndResortESfiles = true;
+        private bool tab2spaceESfiles = true;
         private bool doDateUpdate = false;
 
         private void cmdACE9WeeniesParse_Click(object sender, EventArgs e)
@@ -2565,6 +2566,47 @@ namespace PhatACCacheBinParser
                     Directory.Delete(esRoot4, true);
 
                 txtACEDatabaseConnector.Text += $" completed. {esLink:N0} EmoteScript files re-linked, and {esUnLink:N0} unlinked EmoteScript files for a combined total of {esLink + esUnLink:N0} EmoteScript files saved." + Environment.NewLine;
+            }
+
+            if (tab2spaceESfiles)
+            {
+                var esRoot = Settings.Default["GDLESQLOutputFolder"] + "\\9 WeenieDefaults\\";
+                var matchedESFiles = Directory.EnumerateFiles(esRoot, "*.es", SearchOption.AllDirectories);
+                var esRoot2 = Settings.Default["GDLESQLOutputFolder"] + "\\C EmoteScript\\";
+                var unmatchedESFiles = Directory.EnumerateFiles(esRoot2, "*.es", SearchOption.AllDirectories);
+                var ESFiles = matchedESFiles.Concat(unmatchedESFiles);
+                var affected = 0;
+                txtACEDatabaseConnector.Text += $"Checking for tabs/newlines/whitespace to clean up in {ESFiles.Count():N0} EmoteScript files...";
+                foreach (var ESFile in ESFiles)
+                {
+                    var text = File.ReadAllText(ESFile);
+                    var changed = false;
+
+                    if (!text.Equals(text.Trim()))
+                    {
+                        text = text.Trim();
+                        //changed = true;
+                    }
+
+                    if (text.Contains("\t"))
+                    {
+                        text = text.Replace("\t", "    ");
+                        changed = true;
+                    }
+
+                    if (!text.EndsWith("\r\n"))
+                    {
+                        text += "\r\n";
+                        //changed = true;
+                    }
+
+                    if (changed)
+                    {
+                        File.WriteAllText(ESFile, text);
+                        affected++;
+                    }
+                }
+                txtACEDatabaseConnector.Text += $" completed. {affected:N0} files were cleaned." + Environment.NewLine;
             }
 
             cmdACE9WeeniesParse.Enabled = true;
@@ -2902,6 +2944,11 @@ namespace PhatACCacheBinParser
                         generatorEndTime.Value = (int)(endDate.AddYears(1) - new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
                     }
                 }
+
+                var itemCurMana = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemCurMana);
+                var itemMaxMana = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemMaxMana);
+                if (itemMaxMana != null && itemCurMana == null)
+                    weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemCurMana, Value = itemMaxMana.Value });
 
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
