@@ -281,7 +281,7 @@ namespace PhatACCacheBinParser.ACE_Helpers
                 recipeMod.Unknown9 = value.Unknown9;
                 recipeMod.InstanceId = value.InstanceID;
 
-                bool add = (recipeMod.Health > 0 || recipeMod.Stamina > 0 || recipeMod.Mana > 0);
+                bool add = (recipeMod.Health != 0 || recipeMod.Stamina != 0 || recipeMod.Mana != 0);
                 add = (add || recipeMod.Unknown7 || recipeMod.DataId > 0 || recipeMod.Unknown9 > 0 || recipeMod.InstanceId > 0);
                 add = (add || recipeMod.RecipeModsBool.Count > 0 || recipeMod.RecipeModsDID.Count > 0 || recipeMod.RecipeModsFloat.Count > 0 || recipeMod.RecipeModsIID.Count > 0 || recipeMod.RecipeModsInt.Count > 0 || recipeMod.RecipeModsString.Count > 0);
 
