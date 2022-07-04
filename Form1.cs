@@ -3892,6 +3892,31 @@ namespace PhatACCacheBinParser
                     else
                         txtACEDatabaseConnector.Text += Environment.NewLine + $"Found {tag} currently installed in ace_world_prev database. Skipping update!";
 
+                    txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database Base... ";
+                    url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY/releases";
+                    request.Headers.Clear();
+                    request = (HttpWebRequest)WebRequest.Create(url);
+                    request.UserAgent = "ACE.Server";
+
+                    response = request.GetResponse();
+                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
+                    html = reader.ReadToEnd();
+                    reader.Close();
+                    response.Close();
+
+                    json = JsonConvert.DeserializeObject(html);
+                    tag = json[0].tag_name;
+                    dbURL = json[0].assets[0].browser_download_url;
+                    dbFileName = json[0].assets[0].name;
+
+                    txtACEDatabaseConnector.Text += Environment.NewLine + $"Found release {tag}!";
+
+                    //DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_prev");
+                    if (DatabaseNeedsUpdate("ace_world_16py", tag))
+                        DownloadAndImportDatabase(dbURL, dbFileName, "ace_world_16py");
+                    else
+                        txtACEDatabaseConnector.Text += Environment.NewLine + $"Found {tag} currently installed in ace_world_16py database. Skipping update!";
+
                     txtACEDatabaseConnector.Text += Environment.NewLine + $"Clearing output directory... ";
                     var di = new DirectoryInfo((string)Settings.Default["GDLESQLOutputFolder"]);
                     foreach (var file in di.EnumerateFiles())
@@ -3931,7 +3956,7 @@ namespace PhatACCacheBinParser
                 {
                     usePrevVersion = true;
                     writeDeletedFiles = true;
-                    doDateUpdate = true;
+                    //doDateUpdate = true;
                     cmdACE9WeeniesParse_Click(sender, e);
                     cmdACE1RegionsParse_Click(sender, e);
                     cmdACE2SpellsParse_Click(sender, e);
@@ -3979,6 +4004,16 @@ namespace PhatACCacheBinParser
 
                 if (result != null && result.Equals(version))
                     return false;
+
+                if (result == null)
+                {
+                    sql = $"SELECT `base_Version` FROM {dbName}.version;";
+                    cmd = new MySql.Data.MySqlClient.MySqlCommand(sql, sqlConnect);
+                    result = cmd.ExecuteScalar() as string;
+
+                    if (result != null && result.Equals(version))
+                        return false;
+                }
             }
             catch (Exception)
             {
