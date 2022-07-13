@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Numerics;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using Microsoft.EntityFrameworkCore;
@@ -3783,16 +3784,9 @@ namespace PhatACCacheBinParser
                     //var url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
                     var ci = File.ReadAllText(@"C:\ACE\avt.txt");
                     var url = "https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/history?recordsNumber=20";
-                    var request = (HttpWebRequest)WebRequest.Create(url);
-                    request.UserAgent = "ACE.Server";
-                    request.Headers.Add($"Authorization: Bearer {ci}");
-                    request.Headers.Add("Content-Type: application/json");
-
-                    var response = request.GetResponse();
-                    var reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                    var html = reader.ReadToEnd();
-                    reader.Close();
-                    response.Close();
+                    using var client = new WebClient();
+                    client.AddCIHeaders(ci);
+                    var html = Task.Run(() => client.GetStringFromURL(url)).Result;
 
                     dynamic json = JsonConvert.DeserializeObject(html);
                     //Console.WriteLine();
@@ -3816,26 +3810,14 @@ namespace PhatACCacheBinParser
                     }
 
                     url = $"https://ci.appveyor.com/api/projects/LtRipley36706/ACE-World-16PY-Patches/build/{version}";
-                    request = (HttpWebRequest)WebRequest.Create(url);
-
-                    response = request.GetResponse();
-                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                    html = reader.ReadToEnd();
-                    reader.Close();
-                    response.Close();
+                    html = Task.Run(() => client.GetStringFromURL(url)).Result;
                     json = JsonConvert.DeserializeObject(html);
                     //Console.WriteLine();
                     var jobId = json.build.jobs[0].jobId;
                     txtACEDatabaseConnector.Text += $" | jobId = {jobId}";
 
                     url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts";
-                    request = (HttpWebRequest)WebRequest.Create(url);
-
-                    response = request.GetResponse();
-                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                    html = reader.ReadToEnd();
-                    reader.Close();
-                    response.Close();
+                    html = Task.Run(() => client.GetStringFromURL(url)).Result;
                     json = JsonConvert.DeserializeObject(html);
                     //Console.WriteLine();
                     var fileName = "";
@@ -3861,6 +3843,8 @@ namespace PhatACCacheBinParser
 
                     url = $"https://ci.appveyor.com/api/buildjobs/{jobId}/artifacts/{fileName}";
 
+                    client.RemoveCIHeaders();
+
                     //DownloadAndImportDatabase(url, fileName, "ace_world");
                     if (DatabaseNeedsUpdate("ace_world", "v" + version))
                         DownloadAndImportDatabase(url, fileName, "ace_world");
@@ -3869,15 +3853,7 @@ namespace PhatACCacheBinParser
 
                     txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database... ";
                     url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY-Patches/releases";
-                    request.Headers.Clear();
-                    request = (HttpWebRequest)WebRequest.Create(url);
-                    request.UserAgent = "ACE.Server";
-
-                    response = request.GetResponse();
-                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                    html = reader.ReadToEnd();
-                    reader.Close();
-                    response.Close();
+                    html = Task.Run(() => client.GetStringFromURL(url)).Result;
 
                     json = JsonConvert.DeserializeObject(html);
                     string tag = json[0].tag_name;
@@ -3894,15 +3870,7 @@ namespace PhatACCacheBinParser
 
                     txtACEDatabaseConnector.Text += Environment.NewLine + $"Attempting to grab most recent release for ACE World Database Base... ";
                     url = "https://api.github.com/repos/ACEmulator/ACE-World-16PY/releases";
-                    request.Headers.Clear();
-                    request = (HttpWebRequest)WebRequest.Create(url);
-                    request.UserAgent = "ACE.Server";
-
-                    response = request.GetResponse();
-                    reader = new StreamReader(response.GetResponseStream(), System.Text.Encoding.UTF8);
-                    html = reader.ReadToEnd();
-                    reader.Close();
-                    response.Close();
+                    html = Task.Run(() => client.GetStringFromURL(url)).Result;
 
                     json = JsonConvert.DeserializeObject(html);
                     tag = json[0].tag_name;
@@ -4049,7 +4017,7 @@ namespace PhatACCacheBinParser
             {
                 try
                 {
-                    client.DownloadFile(dbURL, dbFileName);
+                    Task.Run(() => client.DownloadFile(dbURL, dbFileName)).Wait();
                 }
                 catch
                 {
