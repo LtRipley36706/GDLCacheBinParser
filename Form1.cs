@@ -3927,9 +3927,7 @@ namespace PhatACCacheBinParser
                     {
                         dir.Delete(true);
                     }
-                    txtACEDatabaseConnector.Text += "Cleared!" + Environment.NewLine;
-
-                    txtACEDatabaseConnector.Text += Environment.NewLine + "Starting data normalization and updating last_Modified field for release ...";
+                    txtACEDatabaseConnector.Text += "Cleared!" + Environment.NewLine;                    
                 }
 
                 ////var esFiles = Directory.GetFiles(@"C:\Users\tycon\source\repos\LtRipley36706\ACE-World-16PY-Patches\Database\Patches", "*.es", new EnumerationOptions { RecurseSubdirectories = true });
@@ -3957,6 +3955,14 @@ namespace PhatACCacheBinParser
                     usePrevVersion = true;
                     writeDeletedFiles = true;
                     //doDateUpdate = true;
+
+                    txtACEDatabaseConnector.Text += Environment.NewLine + "Starting data normalization";
+
+                    if (doDateUpdate)
+                        txtACEDatabaseConnector.Text += " and updating last_Modified field for release ... ";
+                    else
+                        txtACEDatabaseConnector.Text += " ... ";
+
                     cmdACE9WeeniesParse_Click(sender, e);
                     cmdACE1RegionsParse_Click(sender, e);
                     cmdACE2SpellsParse_Click(sender, e);
