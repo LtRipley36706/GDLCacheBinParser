@@ -2951,6 +2951,306 @@ namespace PhatACCacheBinParser
                 if (itemMaxMana != null && itemCurMana == null)
                     weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemCurMana, Value = itemMaxMana.Value });
 
+                foreach (var emote in weenie.WeeniePropertiesEmote)
+                {
+                    foreach (var action in emote.WeeniePropertiesEmoteAction)
+                    {
+                        var emoteType = (ACE.Entity.Enum.EmoteType)action.Type;
+
+                        // CreationProfile
+                        if (
+                               emoteType is ACE.Entity.Enum.EmoteType.Give
+                            || emoteType is ACE.Entity.Enum.EmoteType.TakeItems
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqOwnsItems
+                            )
+                        {
+                            if (action.DestinationType is null)
+                                action.DestinationType = 0;
+                            if (action.StackSize is null)
+                                action.StackSize = 1;
+                            if (action.Palette is null)
+                                action.Palette = 0;
+                            if (action.Shade is null)
+                                action.Shade = 0;
+                            if (action.TryToBond is null || action.TryToBond is true)
+                                action.TryToBond = false;
+                        }
+                        else
+                        {
+                            if (action.DestinationType is not null)
+                                action.DestinationType = null;
+                            if (action.StackSize is not null)
+                                action.StackSize = null;
+                            if (action.Palette is not null)
+                                action.Palette = null;
+                            if (action.Shade is not null)
+                                action.Shade = null;
+                            if (action.TryToBond is not null)
+                                action.TryToBond = null;
+                        }
+
+                        // Frame
+                        if (
+                               emoteType is ACE.Entity.Enum.EmoteType.MoveHome
+                            || emoteType is ACE.Entity.Enum.EmoteType.Move
+                            || emoteType is ACE.Entity.Enum.EmoteType.Turn
+                            || emoteType is ACE.Entity.Enum.EmoteType.MoveToPos
+                            )
+                        {
+                            if (action.OriginX is null)
+                                action.OriginX = 0;
+                            if (action.OriginY is null)
+                                action.OriginY = 0;
+                            if (action.OriginZ is null)
+                                action.OriginZ = 0;
+                            if (action.AnglesW is null)
+                                action.AnglesW = 0;
+                            if (action.AnglesX is null)
+                                action.AnglesX = 0;
+                            if (action.AnglesY is null)
+                                action.AnglesY = 0;
+                            if (action.AnglesZ is null)
+                                action.AnglesZ = 0;
+                            if (action.AnglesW == 0 && action.AnglesZ == 0)
+                                action.AnglesW = 1;
+                            if (action.ObjCellId is not null)
+                                action.ObjCellId = null;
+                        }
+                        else if (
+                                emoteType is not ACE.Entity.Enum.EmoteType.SetSanctuaryPosition
+                             && emoteType is not ACE.Entity.Enum.EmoteType.TeleportTarget
+                             && emoteType is not ACE.Entity.Enum.EmoteType.TeleportSelf
+                            )
+                        {
+                            action.ObjCellId = null;
+                            action.OriginX = null;
+                            action.OriginY = null;
+                            action.OriginZ = null;
+                            action.AnglesW = null;
+                            action.AnglesX = null;
+                            action.AnglesY = null;
+                            action.AnglesZ = null;
+                        }
+
+                        // Position
+                        if (
+                               emoteType is ACE.Entity.Enum.EmoteType.SetSanctuaryPosition
+                            || emoteType is ACE.Entity.Enum.EmoteType.TeleportTarget
+                            || emoteType is ACE.Entity.Enum.EmoteType.TeleportSelf
+                            )
+                        {
+                            if (action.ObjCellId is null)
+                                action.ObjCellId = 0x00000000;
+                            if (action.OriginX is null)
+                                action.OriginX = 0;
+                            if (action.OriginY is null)
+                                action.OriginY = 0;
+                            if (action.OriginZ is null)
+                                action.OriginZ = 0;
+                            if (action.AnglesW is null)
+                                action.AnglesW = 0;
+                            if (action.AnglesX is null)
+                                action.AnglesX = 0;
+                            if (action.AnglesY is null)
+                                action.AnglesY = 0;
+                            if (action.AnglesZ is null)
+                                action.AnglesZ = 0;
+                            if (action.AnglesW == 0 && action.AnglesZ == 0)
+                                action.AnglesW = 1;
+                        }
+                        else if (
+                                emoteType is not ACE.Entity.Enum.EmoteType.MoveHome
+                             && emoteType is not ACE.Entity.Enum.EmoteType.Move
+                             && emoteType is not ACE.Entity.Enum.EmoteType.Turn
+                             && emoteType is not ACE.Entity.Enum.EmoteType.MoveToPos
+                            )
+                        {
+                            action.ObjCellId = null;
+                            action.OriginX = null;
+                            action.OriginY = null;
+                            action.OriginZ = null;
+                            action.AnglesW = null;
+                            action.AnglesX = null;
+                            action.AnglesY = null;
+                            action.AnglesZ = null;
+                        }
+
+                        // Display cleanup
+                        if (emoteType is not ACE.Entity.Enum.EmoteType.AwardLevelProportionalXP && emoteType is not ACE.Entity.Enum.EmoteType.AwardLevelProportionalSkillXP)
+                            action.Display = null;
+
+                        if (emoteType is ACE.Entity.Enum.EmoteType.AwardXP || emoteType is ACE.Entity.Enum.EmoteType.AwardNoShareXP)
+                        {
+                            if (action.Amount is not null)
+                            {
+                                action.Amount64 = action.Amount;
+                                action.Amount = null;
+                            }
+
+                            if (action.Amount64 is null)
+                                action.Amount64 = 0;
+
+                            if (action.HeroXP64 is null)
+                                action.HeroXP64 = 0;
+                        }
+
+                        if (emoteType is ACE.Entity.Enum.EmoteType.AwardLevelProportionalXP)
+                        {
+                            if (action.Min is not null)
+                            {
+                                action.Min64 = action.Min;
+                                action.Min = null;
+                            }
+
+                            if (action.Max is not null)
+                            {
+                                action.Max64 = action.Max;
+                                action.Max = null;
+                            }
+
+                            if (action.Min64 is null || action.Min64 == long.MinValue || action.Min64 == int.MinValue)
+                                action.Min64 = 0;
+
+                            if (action.Max64 is null || action.Max64 == long.MaxValue || action.Max64 == int.MaxValue)
+                                action.Max64 = 0;
+
+                            //if (action.Max64 >= 3390451400)
+                            //    action.Max64 = 3390451400;
+
+                            if (action.Percent is null)
+                                action.Percent = 1;
+
+                            if (action.Percent > 4 /*|| weenie.ClassId == 31933 /* The Deep, 3.5% to 0.035% */)
+                                action.Percent *= 0.01;
+
+                            action.Percent = Math.Round(action.Percent.Value, 3);
+
+                            if (action.Display is null)
+                                action.Display = false;
+                        }
+
+                        if (emoteType is ACE.Entity.Enum.EmoteType.AwardLuminance || emoteType is ACE.Entity.Enum.EmoteType.SpendLuminance)
+                        {
+                            if (action.Amount is not null)
+                            {
+                                action.Amount64 = action.Amount;
+                                action.Amount = null;
+                            }
+
+                            if (action.HeroXP64 is not null)
+                            {
+                                action.Amount64 = action.HeroXP64;
+                                action.HeroXP64 = null;
+                            }
+                        }
+
+                        if (   emoteType is ACE.Entity.Enum.EmoteType.DecrementQuest
+                            || emoteType is ACE.Entity.Enum.EmoteType.IncrementQuest
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetQuestCompletions
+                            || emoteType is ACE.Entity.Enum.EmoteType.DecrementMyQuest
+                            || emoteType is ACE.Entity.Enum.EmoteType.IncrementMyQuest
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetMyQuestCompletions
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqPackSpace
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetQuestCompletions
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqQuestBitsOn
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqQuestBitsOff
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqMyQuestBitsOn
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqMyQuestBitsOff
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetQuestBitsOn
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetQuestBitsOff
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetMyQuestBitsOn
+                            || emoteType is ACE.Entity.Enum.EmoteType.SetMyQuestBitsOff
+                            )
+                        {
+                            if (action.Amount64 is not null)
+                            {
+                                action.Amount = (int)action.Amount64;
+                                action.Amount64 = null;
+                            }
+
+                            if (action.Amount is null)
+                                action.Amount = 1;
+                        }
+
+                        if (   emoteType is ACE.Entity.Enum.EmoteType.InqQuestSolves
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqFellowNum
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqNumCharacterTitles
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqMyQuestSolves
+                            )
+                        {
+                            if (action.Min64 is not null)
+                            {
+                                action.Min = (int)action.Min64;
+                                action.Min64 = null;
+                            }
+
+                            if (action.Max64 is not null)
+                            {
+                                action.Max = (int)action.Max64;
+                                action.Max64 = null;
+                            }
+
+                            if (action.Min is null || action.Min < 0)
+                                action.Min = 1;
+
+                            if (action.Max is null)
+                                action.Max = int.MaxValue;
+                        }
+
+                        if (emoteType is ACE.Entity.Enum.EmoteType.InqInt64Stat)
+                        {
+                            if (action.Min is not null)
+                            {
+                                action.Min64 = action.Min;
+                                action.Min = null;
+                            }
+
+                            if (action.Max is not null)
+                            {
+                                action.Max64 = action.Max;
+                                action.Max = null;
+                            }
+
+                            if (action.Min64 is null || action.Min64 < 0)
+                                action.Min64 = 0;
+
+                            if (action.Max64 is null || action.Max64 == int.MaxValue)
+                                action.Max64 = long.MaxValue;
+                        }
+
+                        if (   emoteType is ACE.Entity.Enum.EmoteType.InqIntStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqAttributeStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqRawAttributeStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqSecondaryAttributeStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqRawSecondaryAttributeStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqSkillStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.InqRawSkillStat
+                            )
+                        {
+                            if (action.Min64 is not null)
+                            {
+                                action.Min = (int)action.Min64;
+                                action.Min64 = null;
+                            }
+
+                            if (action.Max64 is not null)
+                            {
+                                action.Max = (int)action.Max64;
+                                action.Max64 = null;
+                            }
+
+                            if (action.Min is null || action.Min < 0)
+                                action.Min = 0;
+
+                            if (action.Max is null)
+                                action.Max = int.MaxValue;
+
+                            if (action.Stat is null)
+                                action.Stat = 0;
+                        }
+                    }
+                }
+
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
                 {
