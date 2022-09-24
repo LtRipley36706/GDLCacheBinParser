@@ -2951,6 +2951,34 @@ namespace PhatACCacheBinParser
                 if (itemMaxMana != null && itemCurMana == null)
                     weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemCurMana, Value = itemMaxMana.Value });
 
+
+                //if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Key || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Lockpick || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Healer)
+                //{
+                //    var maxStructure = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.MaxStructure);
+                //    if (maxStructure != null)
+                //    {
+                //        var structure = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.Structure);
+                //        if (structure != null)
+                //        {
+                //            var value = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.Value);
+
+                //            int calcValue = 0;
+                //            int calcValuePerStructure = 0;
+
+                //            if (value?.Value > 0)
+                //            {
+                //                calcValuePerStructure = value.Value / structure.Value;
+                //                calcValue = calcValuePerStructure * (maxStructure.Value - structure.Value);
+
+                //                value.Value += calcValue;
+                //                if (maxStructure.Value > 2 && maxStructure.Value < 100)
+                //                    value.Value = (int)(Math.Ceiling(value.Value / 5.0d) * 5);
+                //            }
+                //        }
+                //        structure.Value = maxStructure.Value;
+                //    }
+                //}
+
                 foreach (var emote in weenie.WeeniePropertiesEmote)
                 {
                     foreach (var action in emote.WeeniePropertiesEmoteAction)
@@ -3160,6 +3188,8 @@ namespace PhatACCacheBinParser
                             || emoteType is ACE.Entity.Enum.EmoteType.SetQuestBitsOff
                             || emoteType is ACE.Entity.Enum.EmoteType.SetMyQuestBitsOn
                             || emoteType is ACE.Entity.Enum.EmoteType.SetMyQuestBitsOff
+                            || emoteType is ACE.Entity.Enum.EmoteType.IncrementIntStat
+                            || emoteType is ACE.Entity.Enum.EmoteType.DecrementIntStat
                             )
                         {
                             if (action.Amount64 is not null)
@@ -3249,6 +3279,12 @@ namespace PhatACCacheBinParser
                                 action.Stat = 0;
                         }
                     }
+                }
+
+                foreach (var item in weenie.WeeniePropertiesCreateList)
+                {
+                    if (item.TryToBond)
+                        item.TryToBond = false;
                 }
 
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
