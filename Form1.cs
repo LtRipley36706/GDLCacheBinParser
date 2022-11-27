@@ -3287,6 +3287,46 @@ namespace PhatACCacheBinParser
                         item.TryToBond = false;
                 }
 
+                if (weenie.Type == (int)ACE.Entity.Enum.WeenieType.Creature
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Admin
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.CombatPet
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Cow
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.GamePiece
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Pet
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Sentinel
+                    || weenie.Type == (int)ACE.Entity.Enum.WeenieType.Vendor)
+                {
+                    if (weenie.WeeniePropertiesBodyPart.Count > 0)
+                    {
+                        foreach (var part in weenie.WeeniePropertiesBodyPart)
+                        {
+                            var armorModVsAcid = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsAcid);
+                            part.ArmorVsAcid = (int)Math.Round(part.BaseArmor * (armorModVsAcid?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsBludgeon = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsBludgeon);
+                            part.ArmorVsBludgeon = (int)Math.Round(part.BaseArmor * (armorModVsBludgeon?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsCold = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsCold);
+                            part.ArmorVsCold = (int)Math.Round(part.BaseArmor * (armorModVsCold?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsElectric = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsElectric);
+                            part.ArmorVsElectric = (int)Math.Round(part.BaseArmor * (armorModVsElectric?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsFire = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsFire);
+                            part.ArmorVsFire = (int)Math.Round(part.BaseArmor * (armorModVsFire?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsNether = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsNether);
+                            part.ArmorVsNether = (int)Math.Round(part.BaseArmor * (armorModVsNether?.Value ?? 0), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsPierce = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsPierce);
+                            part.ArmorVsPierce = (int)Math.Round(part.BaseArmor * (armorModVsPierce?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+
+                            var armorModVsSlash = weenie.WeeniePropertiesFloat.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyFloat.ArmorModVsSlash);
+                            part.ArmorVsSlash = (int)Math.Round(part.BaseArmor * (armorModVsSlash?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
+                        }
+                    }
+                }
+
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
                 {
