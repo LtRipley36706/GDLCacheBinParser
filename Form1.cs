@@ -2475,6 +2475,31 @@ namespace PhatACCacheBinParser
                 //    }
                 //}
 
+                //for (var i = 43595u; i < 43631; i++)
+                //{
+                //    var weenieToCloneFrom = deDupedWeenies.First(w => w.ClassId == i);
+                //    var weenietoCloneTo = new ACE.Database.Models.World.Weenie { ClassId = i + 41, Type = weenieToCloneFrom.Type, LastModified = weenieToCloneFrom.LastModified, ClassName = "" };
+
+                //    foreach (var prop in weenieToCloneFrom.WeeniePropertiesInt)
+                //        weenietoCloneTo.WeeniePropertiesInt.Add(new WeeniePropertiesInt { ObjectId = prop.ObjectId + 41, Type = prop.Type, Value = prop.Value });
+
+                //    weenietoCloneTo.WeeniePropertiesInt.First(w => w.Type == 324).Value = 13;
+
+                //    foreach (var prop in weenieToCloneFrom.WeeniePropertiesBool)
+                //        weenietoCloneTo.WeeniePropertiesBool.Add(new WeeniePropertiesBool { ObjectId = prop.ObjectId + 41, Type = prop.Type, Value = prop.Value });
+
+                //    foreach (var prop in weenieToCloneFrom.WeeniePropertiesFloat)
+                //        weenietoCloneTo.WeeniePropertiesFloat.Add(new WeeniePropertiesFloat { ObjectId = prop.ObjectId + 41, Type = prop.Type, Value = prop.Value });
+
+                //    foreach (var prop in weenieToCloneFrom.WeeniePropertiesString)
+                //        weenietoCloneTo.WeeniePropertiesString.Add(new WeeniePropertiesString { ObjectId = prop.ObjectId + 41, Type = prop.Type, Value = prop.Value.Replace("Soldier", "Spitter") });
+
+                //    foreach (var prop in weenieToCloneFrom.WeeniePropertiesDID)
+                //        weenietoCloneTo.WeeniePropertiesDID.Add(new WeeniePropertiesDID { ObjectId = prop.ObjectId + 41, Type = prop.Type, Value = prop.Value });
+
+                //    deDupedWeenies.Add(weenietoCloneTo);
+                //}
+
                 //txtACEDatabaseConnector.Text += Environment.NewLine + "Cleaning up weenies... ";
                 CleanupWeenies(deDupedWeenies);
                 //txtACEDatabaseConnector.Text += $" completed." + Environment.NewLine;
