@@ -3352,6 +3352,27 @@ namespace PhatACCacheBinParser
                     }
                 }
 
+                //else if (weenie.WeeniePropertiesSpellBook.Count > 0 || didSpell != null)
+                //{
+                //    //var itemCurMana = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemCurMana);
+                //    //var itemMaxMana = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemMaxMana);
+                //    var itemSpellcraft = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemSpellcraft);
+                //    //itemMaxMana = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemMaxMana);
+
+                //    if (itemCurMana is null)
+                //        weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemCurMana, Value = 10000 });
+
+                //    if (itemCurMana is null)
+                //        weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemMaxMana, Value = 10000 });
+
+                //    if (itemSpellcraft is null)
+                //        weenie.WeeniePropertiesInt.Add(new ACE.Database.Models.World.WeeniePropertiesInt { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyInt.ItemSpellcraft, Value = 500 });
+                //}
+
+                var placement = weenie.WeeniePropertiesInt.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.Placement);
+                if (placement != null)
+                    weenie.WeeniePropertiesInt.Remove(placement);
+
                 var pcapBools = weenie.WeeniePropertiesBool.ToList();
                 foreach (var prop in pcapBools)
                 {
