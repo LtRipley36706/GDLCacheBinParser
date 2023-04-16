@@ -1174,6 +1174,9 @@ namespace PhatACCacheBinParser
             if (a == null || b == null)
                 return false;
 
+            if ((a > 0 && b < 0) || (a < 0 && b > 0))
+                return false;
+
             //const float floatNormal = (1 << 23) * float.Epsilon;
             //float absA = Math.Abs(a.Value);
             //float absB = Math.Abs(b.Value);
