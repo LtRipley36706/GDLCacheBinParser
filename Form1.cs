@@ -2691,6 +2691,8 @@ namespace PhatACCacheBinParser
                     {
                         var aiImmobile = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AiImmobile);
                         var dontTurnOrMoveWhenGiving = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.DontTurnOrMoveWhenGiving);
+                        var targetingTactic = weenie.WeeniePropertiesInt.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.TargetingTactic);
+                        var tolerance = weenie.WeeniePropertiesInt.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyInt.Tolerance);
 
                         if (aiImmobile == null)
                             weenie.WeeniePropertiesBool.Add(new ACE.Database.Models.World.WeeniePropertiesBool { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyBool.AiImmobile, Value = true });
@@ -2701,6 +2703,23 @@ namespace PhatACCacheBinParser
                             weenie.WeeniePropertiesBool.Add(new ACE.Database.Models.World.WeeniePropertiesBool { ObjectId = weenie.ClassId, Type = (ushort)ACE.Entity.Enum.Properties.PropertyBool.DontTurnOrMoveWhenGiving, Value = true });
                         else if (!dontTurnOrMoveWhenGiving.Value)
                             dontTurnOrMoveWhenGiving.Value = true;
+
+                        if (weenie.ClassId != 36654 /* Wall */ && weenie.ClassId != 52085 /* Training Dummy */)
+                        {
+                            if (targetingTactic != null && targetingTactic.Value > 0)
+                            {
+                                if (tolerance == null || (tolerance != null && tolerance.Value > 1))
+                                {
+                                    aiImmobile = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.AiImmobile);
+                                    dontTurnOrMoveWhenGiving = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.DontTurnOrMoveWhenGiving);
+
+                                    if (aiImmobile != null)
+                                        weenie.WeeniePropertiesBool.Remove(aiImmobile);
+                                    if (dontTurnOrMoveWhenGiving != null)
+                                        weenie.WeeniePropertiesBool.Remove(dontTurnOrMoveWhenGiving);
+                                }
+                            }
+                        }
                     }
 
                     //var canGenerateRare = weenie.WeeniePropertiesBool.FirstOrDefault(p => p.Type == (ushort)ACE.Entity.Enum.Properties.PropertyBool.CanGenerateRare);
