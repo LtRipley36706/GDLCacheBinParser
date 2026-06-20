@@ -3372,6 +3372,40 @@ namespace PhatACCacheBinParser
                             part.ArmorVsSlash = (int)Math.Round(part.BaseArmor * (armorModVsSlash?.Value ?? 1), 0, MidpointRounding.AwayFromZero);
                         }
                     }
+
+                    var maxHealth = weenie.WeeniePropertiesAttribute2nd.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyAttribute2nd.MaxHealth);
+                    var maxStamina = weenie.WeeniePropertiesAttribute2nd.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyAttribute2nd.MaxStamina);
+                    var maxMana = weenie.WeeniePropertiesAttribute2nd.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyAttribute2nd.MaxMana);
+
+                    var endurance = weenie.WeeniePropertiesAttribute.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyAttribute.Endurance);
+                    var self = weenie.WeeniePropertiesAttribute.FirstOrDefault(y => y.Type == (ushort)ACE.Entity.Enum.Properties.PropertyAttribute.Self);
+
+                    //if (weenie.ClassId == 21161)
+                    //if (weenie.ClassId == 6636)
+                    //    Console.WriteLine();
+
+                    //var x = (uint)Math.Floor(endurance.InitLevel / 2d);
+                    //var y = maxHealth.CurrentLevel;
+                    //var z = y - x;
+                    //var zz = z;
+                    ////var xx = (uint)Math.Ceiling(endurance.InitLevel / 2d);
+                    ////var yy = maxHealth.CurrentLevel;
+                    ////zz = yy-xx;
+                    ////z = zz;
+
+                    ////var x = endurance.InitLevel / 2;
+                    ////var y = maxHealth.CurrentLevel;
+                    ////var z = y - x;
+                    ////var zz = (uint)Math.Ceiling(y - (decimal)x);
+
+                    //if (maxHealth is not null && endurance is not null && maxHealth.CurrentLevel > 0 && endurance.InitLevel > 0)
+                    //    maxHealth.InitLevel = maxHealth.CurrentLevel - (uint)Math.Ceiling((endurance.InitLevel / 2f));
+
+                    //if (maxStamina is not null && endurance is not null && maxStamina.CurrentLevel > 0 && endurance.InitLevel > 0)
+                    //    maxStamina.InitLevel = maxStamina.CurrentLevel - endurance.InitLevel;
+
+                    //if (maxMana is not null && self is not null && maxMana.CurrentLevel > 0 && self.InitLevel > 0)
+                    //    maxMana.InitLevel = maxMana.CurrentLevel - self.InitLevel;
                 }
 
                 //else if (weenie.WeeniePropertiesSpellBook.Count > 0 || didSpell != null)
